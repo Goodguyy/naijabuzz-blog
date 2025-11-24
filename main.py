@@ -3,10 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
 from bs4 import BeautifulSoup
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# Database setup
+# OpenAI for AI images (free tier)
+openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
+
+# Database
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -28,6 +32,21 @@ class Post(db.Model):
 with app.app_context():
     db.create_all()
 
+def generate_ai_image(topic):
+    if not openai_client:
+        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+    try:
+        response = openai_client.images.generate(
+            model="dall-e-3",
+            prompt=f"Realistic Nigerian news illustration: {topic}, dramatic, high quality, no text, 16:9",
+            size="1792x1024",
+            quality="standard",
+            n=1
+        )
+        return response.data[0].url
+    except:
+        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+
 @app.route('/')
 def index():
     posts = Post.query.order_by(Post.pub_date.desc()).limit(90).all()
@@ -48,14 +67,7 @@ def index():
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;box-shadow:0 5px 15px rgba(0,212,170,0.3);}
             h1{margin:0;font-size:32px;font-weight:bold;}
             .subtitle{color:#e8fff9;font-size:18px;margin-top:8px;}
-            .grid{
-                display:grid;
-                grid-template-columns:repeat(3,1fr);
-                gap:28px;
-                max-width:1400px;
-                margin:30px auto;
-                padding:0 15px;
-            }
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
             .card img{width:100%;height:240px;object-fit:cover;}
@@ -122,7 +134,7 @@ def generate():
         ("Entertainment", "https://pulse.ng/rss"),
         ("Entertainment", "https://notjustok.com/feed/"),
     ]
-    prefixes = ["Na Wa O!", "Gist Alert:", "You Won’t Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!", "This One Loud O!", "See Gbege!"]
+    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!", "This One Loud O!", "See Gbege!"]
     added = 0
     with app.app_context():
         random.shuffle(feeds)
@@ -132,22 +144,9 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
+                    # 1. Try real image from RSS
                     img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
-                        img_tag = soup.find('img')
-                        if img_tag and img_tag.get('src'):
-                            img = img_tag['src']
-                            if img.startswith('//'): img = 'https:' + img
-                    title = random.choice(prefixes) + " " + e.title
-                    excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
-                    pub_date = getattr(e, "published", datetime.now().isoformat())
-                    db.session.add(Post(title=title, excerpt=excerpt, link=e.link, image=img, category=cat, pub_date=pub_date))
-                    added += 1
-            except: continue
-        db.session.commit()
-    return f"NaijaBuzz is ON FIRE! Added {added} fresh stories with real images!"
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+                        img_tag...
