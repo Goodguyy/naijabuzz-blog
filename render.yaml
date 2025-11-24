@@ -6,8 +6,7 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn main:app
-    envVars:
-      DATABASE_URL: ${naijabuzz-db.POSTGRESQL_DATABASE_URL}
+    # ← delete the DATABASE_URL line here
 
   - type: cron
     name: naijabuzz-updater
@@ -17,5 +16,4 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python generator.py
     schedule: "0 */4 * * *"
-    envVars:
-      DATABASE_URL: ${naijabuzz-db.POSTGRESQL_DATABASE_URL}
+    # ← delete the DATABASE_URL line here too
