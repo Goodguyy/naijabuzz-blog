@@ -2,6 +2,7 @@ from flask import Flask, render_template_string
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
+from bs4 import BeautifulSoup  # For image extraction
 
 app = Flask(__name__)
 
@@ -20,7 +21,7 @@ class Post(db.Model):
     title = db.Column(db.String(500))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(500), unique=True)
-    image = db.Column(db.String(500), default="https://i.ibb.co/9bYdR1v/naijabuzz-og.jpg")
+    image = db.Column(db.String(500), default="https://i.ibb.co/9bYdR1v/naijabuzz-og.jpg")  # Placeholder
     category = db.Column(db.String(50))
     pub_date = db.Column(db.String(100))
 
@@ -62,7 +63,7 @@ def index():
             {% if posts %}
                 {% for p in posts %}
                 <div class="post">
-                    <img src="{{ p.image }}" alt="{{ p.title }}">
+                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://i.ibb.co/9bYdR1v/naijabuzz-og.jpg'">
                     <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                     <p><small><strong>{{ p.category }}</strong> • {{ p.pub_date[:16] }}</small></p>
                     <p>{{ p.excerpt }}</p>
@@ -90,7 +91,7 @@ def generate():
         ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
     ]
-    prefixes = ["Na Wa O!", "Gist Alert:", "You Won’t Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!"]
+    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!"]
     added = 0
     with app.app_context():
         for cat, url in feeds:
@@ -98,21 +99,23 @@ def generate():
             for e in f.entries[:10]:
                 if Post.query.filter_by(link=e.link).first():
                     continue
-                # Extract image
-                img = "https://i.ibb.co/9bYdR1v/naijabuzz-og.jpg"
-                if hasattr(e, 'media_content'):
-                    for m in e.media_content:
-                        if 'url' in m: img = m['url']; break
-                elif hasattr(e, 'enclosures'):
-                    for enc in e.enclosures:
-                        if enc.type.startswith('image'): img = enc.href; break
+                # Extract real image from summary/description HTML
+                img = "https://i.ibb.co/9bYdR1v/naijabuzz-og.jpg"  # Default
+                if hasattr(e, "summary") or hasattr(e, "description"):
+                    html_content = (e.summary or e.description or "")
+                    soup = BeautifulSoup(html_content, 'html.parser')
+                    img_tag = soup.find('img')
+                    if img_tag and img_tag.get('src'):
+                        img = img_tag['src']
+                        if not img.startswith('http'):  # Relative URL fix
+                            img = f"https://punchng.com{img}" if 'punchng' in url else img  # Adjust per feed
                 title = random.choice(prefixes) + " " + e.title
                 excerpt = (e.summary[:280] + "...") if hasattr(e, "summary") else "Click to read full gist..."
                 pub_date = e.published if hasattr(e, "published") else datetime.now().isoformat()
                 db.session.add(Post(title=title, excerpt=excerpt, link=e.link, image=img, category=cat, pub_date=pub_date))
                 added += 1
         db.session.commit()
-    return f"NaijaBuzz is healthy! Added {added} new stories."
+    return f"NaijaBuzz healthy! Added {added} new stories (real images extracted)."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
