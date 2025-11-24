@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# DB setup
+# Database setup
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -18,11 +18,11 @@ db = SQLAlchemy(app)
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(500))
+    title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
-    link = db.Column(db.String(500), unique=True)
-    image = db.Column(db.String(500), default="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png")
-    category = db.Column(db.String(50))
+    link = db.Column(db.String(600), unique=True)
+    image = db.Column(db.String(600), default="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png")
+    category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
 with app.app_context():
@@ -30,7 +30,7 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    posts = Post.query.order_by(Post.pub_date.desc()).limit(60).all()
+    posts = Post.query.order_by(Post.pub_date.desc()).limit(90).all()
     html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -45,22 +45,30 @@ def index():
         <meta property="og:image" content="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
-            header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin-bottom:25px;box-shadow:0 5px 15px rgba(0,212,170,0.3);}
-            h1{margin:0;font-size:28px;font-weight:bold;}
-            .subtitle{color:#e8fff9;font-size:16px;margin-top:8px;}
-            .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;margin-top:20px;}
-            .card{background:white;border-radius:15px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,0.1);transition:all 0.3s;}
-            .card:hover{transform:translateY(-8px);box-shadow:0 15px 35px rgba(0,0,0,0.15);}
-            .card img{width:100%;height:220px;object-fit:cover;}
-            .content{padding:18px;}
-            .card h2{font-size:19px;line-height:1.3;margin:0 0 10px 0;}
+            header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;box-shadow:0 5px 15px rgba(0,212,170,0.3);}
+            h1{margin:0;font-size:32px;font-weight:bold;}
+            .subtitle{color:#e8fff9;font-size:18px;margin-top:8px;}
+            .grid{
+                display:grid;
+                grid-template-columns:repeat(3,1fr);
+                gap:28px;
+                max-width:1400px;
+                margin:30px auto;
+                padding:0 15px;
+            }
+            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
+            .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
+            .card img{width:100%;height:240px;object-fit:cover;}
+            .content{padding:20px;}
+            .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
             .card h2 a:hover{color:#00d4aa;}
-            .meta{font-size:13px;color:#00d4aa;font-weight:bold;margin-bottom:8px;}
-            .card p{color:#444;font-size:15px;line-height:1.5;margin:0 0 15px 0;}
-            .readmore{background:#00d4aa;color:white;padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block;font-size:14px;}
+            .meta{font-size:14px;color:#00d4aa;font-weight:bold;margin-bottom:10px;}
+            .card p{color:#444;font-size:16px;line-height:1.5;margin:0 0 15px 0;}
+            .readmore{background:#00d4aa;color:white;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;font-size:15px;}
             .readmore:hover{background:#00b894;}
-            footer{text-align:center;padding:40px;color:#666;font-size:14px;}
+            footer{text-align:center;padding:50px;color:#666;font-size:15px;}
+            @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
             @media(max-width:768px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
@@ -83,8 +91,8 @@ def index():
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="card"><p style="text-align:center;padding:80px;font-size:20px;color:#00d4aa;">
-                    Loading fresh Naija gist... Refresh in a minute! 
+                <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:#00d4aa;">
+                    Loading the hottest Naija gist... Refresh in a minute! 
                 </p></div>
             {% endif %}
         </div>
@@ -100,6 +108,7 @@ def generate():
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
+        ("Naija News", "https://thenationonlineng.net/feed/"),
         ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
         ("Football", "https://www.goal.com/en-ng/feeds/news"),
@@ -111,15 +120,16 @@ def generate():
         ("Crypto", "https://coindesk.com/arc/outboundfeeds/rss/"),
         ("Viral", "https://legit.ng/rss"),
         ("Entertainment", "https://pulse.ng/rss"),
+        ("Entertainment", "https://notjustok.com/feed/"),
     ]
-    prefixes = ["Na Wa O!", "Gist Alert!", "You Won’t Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!", "This One Loud O!", "See Gbege!"]
+    prefixes = ["Na Wa O!", "Gist Alert:", "You Won’t Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!", "This One Loud O!", "See Gbege!"]
     added = 0
     with app.app_context():
         random.shuffle(feeds)
         for cat, url in feeds:
             try:
                 f = feedparser.parse(url)
-                for e in f.entries[:10]:
+                for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
                     img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
@@ -131,7 +141,7 @@ def generate():
                             img = img_tag['src']
                             if img.startswith('//'): img = 'https:' + img
                     title = random.choice(prefixes) + " " + e.title
-                    excerpt = BeautifulSoup(content, 'html.parser').get_text()[:320] + "..."
+                    excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                     pub_date = getattr(e, "published", datetime.now().isoformat())
                     db.session.add(Post(title=title, excerpt=excerpt, link=e.link, image=img, category=cat, pub_date=pub_date))
                     added += 1
