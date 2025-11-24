@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: naijabuzz-live
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
+    envVars:
+      DATABASE_URL: ${naijabuzz-db.POSTGRESQL_DATABASE_URL}
+
+  - type: cron
+    name: naijabuzz-updater
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python generator.py
+    schedule: "0 */4 * * *"
+    envVars:
+      DATABASE_URL: ${naijabuzz-db.POSTGRESQL_DATABASE_URL}
