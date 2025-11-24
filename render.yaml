@@ -6,12 +6,3 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn main:app
-
-  - type: cron
-    name: naijabuzz-updater
-    env: python
-    region: oregon
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python generator.py
-    schedule: "0 */4 * * *"
