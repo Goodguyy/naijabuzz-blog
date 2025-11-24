@@ -3,3 +3,4 @@ feedparser
 gunicorn
 psycopg2-binary
 flask-sqlalchemy
+beautifulsoup4
