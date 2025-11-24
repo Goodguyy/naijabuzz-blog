@@ -6,7 +6,6 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn main:app
-    # ← delete the DATABASE_URL line here
 
   - type: cron
     name: naijabuzz-updater
@@ -16,4 +15,3 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python generator.py
     schedule: "0 */4 * * *"
-    # ← delete the DATABASE_URL line here too
