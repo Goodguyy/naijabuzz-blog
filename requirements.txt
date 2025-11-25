@@ -4,5 +4,7 @@ gunicorn
 psycopg2-binary
 flask-sqlalchemy
 beautifulsoup4
-openai
-google-generativeai
+openai==1.3.7
+google-generativeai==0.7.2
+pydantic==2.5.0
+httpx==0.27.0
