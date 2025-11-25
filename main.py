@@ -7,7 +7,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# OpenAI — NEW VERSION (no crash)
+# OpenAI — NEW VERSION (works perfectly)
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 
 # Database
@@ -61,9 +61,9 @@ def index():
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
             .subtitle{color:#e8fff9;font-size:18px;}
-            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28 воpx;max-width:1400px;margin:30px auto;padding:0 15px;}
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
-            .: hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
+            .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
             .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
