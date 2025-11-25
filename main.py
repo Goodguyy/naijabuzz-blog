@@ -3,12 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
 from bs4 import BeautifulSoup
-from openai import OpenAI
 
 app = Flask(__name__)
-
-# OpenAI — v1.51.2 (the only version that works on Render)
-openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 
 # Database
 db_uri = os.environ.get('DATABASE_URL')
@@ -31,20 +27,6 @@ class Post(db.Model):
 
 with app.app_context():
     db.create_all()
-
-def generate_ai_image(topic):
-    if not openai_client:
-        return "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
-    try:
-        response = openai_client.images.generate(
-            model="dall-e-3",
-            prompt=f"Realistic Nigerian news illustration: {topic}, dramatic, high quality, no text, 16:9",
-            size="1024x576",
-            n=1
-        )
-        return response.data[0].url
-    except:
-        return "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
 
 @app.route('/')
 def index():
@@ -141,9 +123,6 @@ def generate():
                         if img_tag and img_tag.get('src'):
                             img = img_tag['src']
                             if img.startswith('//'): img = 'https:' + img
-                    if "placeholder.com" in img and openai_client:
-                        ai_img = generate_ai_image(e.title)
-                        if ai_img: img = ai_img
                     title = random.choice(prefixes) + " " + e.title
                     excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                     pub_date = getattr(e, "published", datetime.now().isoformat())
@@ -151,7 +130,7 @@ def generate():
                     added += 1
             except: continue
         db.session.commit()
-    return f"NaijaBuzz healthy! Added {added} stories with real + AI images!"
+    return f"NaijaBuzz healthy! Added {added} fresh stories!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
