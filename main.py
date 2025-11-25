@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
@@ -36,8 +36,16 @@ def index():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
+        <title>NaijaBuzz - Latest Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Fresh Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
+        <meta name="robots" content="index, follow">
+        <link rel="canonical" href="https://www.naijabuzz.com">
+        <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
+        <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
+        <meta property="og:url" content="https://www.naijabuzz.com">
+        <meta property="og:image" content="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png">
+        <meta name="twitter:card" content="summary_large_image">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
@@ -89,6 +97,20 @@ def index():
     </html>
     """
     return render_template_string(html, posts=posts)
+
+@app.route('/robots.txt')
+def robots():
+    return "User-agent: *\nAllow: /\nSitemap: https://www.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+
+@app.route('/sitemap.xml')
+def sitemap():
+    posts = Post.query.all()
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += '  <url><loc>https://www.naijabuzz.com</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
+    for p in posts:
+        xml += f'  <url><loc>{p.link}</loc><lastmod>{p.pub_date[:10]}</lastmod><changefreq>daily</changefreq></url>\n'
+    xml += '</urlset>'
+    return xml, 200, {'Content-Type': 'application/xml'}
 
 @app.route('/generate')
 def generate():
