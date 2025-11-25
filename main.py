@@ -7,7 +7,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# OpenAI only — stable, no crashes
+# OpenAI — NEW VERSION (no crash)
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 
 # Database
@@ -34,17 +34,17 @@ with app.app_context():
 
 def generate_ai_image(topic):
     if not openai_client:
-        return None
+        return "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
     try:
-        resp = openai_client.images.generate(
+        response = openai_client.images.generate(
             model="dall-e-3",
             prompt=f"Realistic Nigerian news illustration: {topic}, dramatic, high quality, no text, 16:9",
             size="1024x576",
             n=1
         )
-        return resp.data[0].url
+        return response.data[0].url
     except:
-        return None
+        return "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
 
 @app.route('/')
 def index():
@@ -61,9 +61,9 @@ def index():
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
             .subtitle{color:#e8fff9;font-size:18px;}
-            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28 воpx;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
-            .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
+            .: hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
             .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
@@ -102,7 +102,7 @@ def index():
                 </p></div>
             {% endif %}
         </div>
-        <footer>© 2025 NaijaBuzz • www.naijabuzz.com</footer>
+        <footer>© 2025 NaijaBuzz • www.naijabuzz.com • Auto-updated every few minutes</footer>
     </body>
     </html>
     """
@@ -121,8 +121,9 @@ def generate():
         ("World", "https://bbc.com/news/world/rss.xml"),
         ("Tech", "https://techcabal.com/feed/"),
         ("Viral", "https://legit.ng/rss"),
+        ("Entertainment", "https://pulse.ng/rss"),
     ]
-    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!"]
+    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
     with app.app_context():
         random.shuffle(feeds)
@@ -150,7 +151,7 @@ def generate():
                     added += 1
             except: continue
         db.session.commit()
-    return f"NaijaBuzz healthy! Added {added} fresh stories!"
+    return f"NaijaBuzz healthy! Added {added} stories with real + AI images!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
