@@ -7,7 +7,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# OpenAI only (Gemini removed — it crashes on Render free tier)
+# OpenAI only — stable, no crashes
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 
 # Database
@@ -25,7 +25,7 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
@@ -34,18 +34,17 @@ with app.app_context():
 
 def generate_ai_image(topic):
     if not openai_client:
-        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+        return None
     try:
-        response = openai_client.images.generate(
+        resp = openai_client.images.generate(
             model="dall-e-3",
             prompt=f"Realistic Nigerian news illustration: {topic}, dramatic, high quality, no text, 16:9",
             size="1024x576",
-            quality="standard",
             n=1
         )
-        return response.data[0].url
+        return resp.data[0].url
     except:
-        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+        return None
 
 @app.route('/')
 def index():
@@ -57,16 +56,11 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
-        <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
-        <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
-        <meta property="og:url" content="https://www.naijabuzz.com">
-        <meta property="og:image" content="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
-            header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;box-shadow:0 5px 15px rgba(0,212,170,0.3);}
+            header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
-            .subtitle{color:#e8fff9;font-size:18px;margin-top:8px;}
+            .subtitle{color:#e8fff9;font-size:18px;}
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
@@ -77,8 +71,7 @@ def index():
             .card h2 a:hover{color:#00d4aa;}
             .meta{font-size:14px;color:#00d4aa;font-weight:bold;margin-bottom:10px;}
             .card p{color:#444;font-size:16px;line-height:1.5;margin:0 0 15px 0;}
-            .readmore{background:#00d4aa;color:white;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;font-size:15px;}
-            .readmore:hover{background:#00b894;}
+            .readmore{background:#00d4aa;color:white;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;}
             footer{text-align:center;padding:50px;color:#666;font-size:15px;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
             @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);gap:20px;}}
@@ -94,7 +87,7 @@ def index():
             {% if posts %}
                 {% for p in posts %}
                 <div class="card">
-                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png'">
+                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image'">
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -109,7 +102,7 @@ def index():
                 </p></div>
             {% endif %}
         </div>
-        <footer>© 2025 NaijaBuzz • www.naijabuzz.com • Auto-updated every few minutes</footer>
+        <footer>© 2025 NaijaBuzz • www.naijabuzz.com</footer>
     </body>
     </html>
     """
@@ -128,9 +121,8 @@ def generate():
         ("World", "https://bbc.com/news/world/rss.xml"),
         ("Tech", "https://techcabal.com/feed/"),
         ("Viral", "https://legit.ng/rss"),
-        ("Entertainment", "https://pulse.ng/rss"),
     ]
-    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
+    prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!"]
     added = 0
     with app.app_context():
         random.shuffle(feeds)
@@ -140,8 +132,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    # 1. Real image from RSS
-                    img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+                    img = "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
@@ -149,8 +140,7 @@ def generate():
                         if img_tag and img_tag.get('src'):
                             img = img_tag['src']
                             if img.startswith('//'): img = 'https:' + img
-                    # 2. OpenAI AI image if no real one
-                    if "naijabuzz-logo" in img and openai_client:
+                    if "placeholder.com" in img and openai_client:
                         ai_img = generate_ai_image(e.title)
                         if ai_img: img = ai_img
                     title = random.choice(prefixes) + " " + e.title
@@ -160,7 +150,7 @@ def generate():
                     added += 1
             except: continue
         db.session.commit()
-    return f"NaijaBuzz healthy! Added {added} stories with real + AI images!"
+    return f"NaijaBuzz healthy! Added {added} fresh stories!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
