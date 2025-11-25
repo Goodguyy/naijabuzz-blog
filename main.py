@@ -8,14 +8,14 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# AI Setup — OpenAI first, Gemini backup
+# === AI Setup ===
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 gemini_key = os.environ.get('GEMINI_API_KEY')
 if gemini_key:
     genai.configure(api_key=gemini_key)
     gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Database
+# === Database ===
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -37,14 +37,14 @@ class Post(db.Model):
 with app.app_context():
     db.create_all()
 
-# AI Image Generators
+# === AI Image Generators ===
 def generate_openai_image(topic):
     if not openai_client:
         return None
     try:
         resp = openai_client.images.generate(
             model="dall-e-3",
-            prompt=f"Realistic Nigerian news illustration for: {topic}. Dramatic, high quality, no text, 16:9",
+            prompt=f"Realistic Nigerian news illustration: {topic}. Dramatic, high quality, no text, 16:9",
             size="1024x576",
             quality="standard",
             n=1
@@ -58,10 +58,13 @@ def generate_gemini_image(topic):
         return None
     try:
         result = gemini_model.generate_content(
-            f"Generate a realistic news illustration for: {topic}. Nigerian context, dramatic, high quality, no text, 16:9 aspect ratio."
+            f"Generate a realistic news illustration for: {topic}. Nigerian context, dramatic, high quality, no text, 16:9 aspect ratio.",
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="text/plain"
+            )
         )
-        # Gemini sometimes returns base64 — placeholder for now
-        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+        # Gemini returns text — we skip image for now (too complex for free tier)
+        return None
     except:
         return None
 
@@ -117,7 +120,7 @@ def index():
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
                         <p>{{ p.excerpt|safe }}</p>
-                        <a href="{{ p.link }}" target="_blank" class="readmore">Read Full Story</a>
+                        <a href="{{ p.link }}" target="_blank" class="readmore">Read Full Story →</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -158,7 +161,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    # 1. Real image
+                    # 1. Real image from RSS
                     img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
@@ -167,14 +170,12 @@ def generate():
                         if img_tag and img_tag.get('src'):
                             img = img_tag['src']
                             if img.startswith('//'): img = 'https:' + img
-                    # 2. OpenAI backup
+                    # 2. OpenAI AI backup
                     if "naijabuzz-logo" in img and openai_client:
                         ai_img = generate_openai_image(e.title)
                         if ai_img: img = ai_img
-                    # 3. Gemini backup
-                    if "naijabuzz-logo" in img and gemini_key:
-                        gemini_img = generate_gemini_image(e.title)
-                        if gemini_img: img = gemini_img
+                    # 3. Gemini backup (disabled — too complex for free tier)
+                    # if "naijabuzz-logo" in img: img = generate_gemini_image(e.title) or img
                     title = random.choice(prefixes) + " " + e.title
                     excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                     pub_date = getattr(e, "published", datetime.now().isoformat())
