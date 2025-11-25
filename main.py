@@ -38,6 +38,7 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="google-site-verification" content="google-site-verification: google52ba3c4aa0120fd7.html" />
         <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
         <meta name="robots" content="index, follow">
         <link rel="canonical" href="https://www.naijabuzz.com">
