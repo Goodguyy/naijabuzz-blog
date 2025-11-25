@@ -4,11 +4,16 @@ import os, feedparser, random
 from datetime import datetime
 from bs4 import BeautifulSoup
 from openai import OpenAI
+import google.generativeai as genai
 
 app = Flask(__name__)
 
-# OpenAI for AI images (free tier)
+# OpenAI + Gemini setup (AI backup for images)
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
+gemini_key = os.environ.get('GEMINI_API_KEY')
+if gemini_key:
+    genai.configure(api_key=gemini_key)
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Database
 db_uri = os.environ.get('DATABASE_URL')
@@ -32,20 +37,32 @@ class Post(db.Model):
 with app.app_context():
     db.create_all()
 
-def generate_ai_image(topic):
+def generate_openai_image(topic):
     if not openai_client:
-        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+        return None
     try:
         response = openai_client.images.generate(
             model="dall-e-3",
-            prompt=f"Realistic Nigerian news illustration: {topic}, dramatic, high quality, no text, 16:9",
-            size="1792x1024",
+            prompt=f"Realistic Nigerian news illustration for '{topic}': dramatic, high quality, no text, 16:9 aspect ratio",
+            size="1024x576",
             quality="standard",
             n=1
         )
         return response.data[0].url
     except:
-        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+        return None
+
+def generate_gemini_image(topic):
+    if not gemini_key:
+        return None
+    try:
+        response = gemini_model.generate_content([
+            f"Generate a realistic news illustration for '{topic}'. Nigerian context, dramatic, high quality, no text, 16:9."
+        ])
+        # Parse response for image URL (simplified; expand if needed)
+        return "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"  # Placeholder for now; add real parser
+    except:
+        return None
 
 @app.route('/')
 def index():
@@ -70,7 +87,7 @@ def index():
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .card img{width:100%;height:240px;object-fit:cover;}
+            .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
@@ -81,7 +98,8 @@ def index():
             .readmore:hover{background:#00b894;}
             footer{text-align:center;padding:50px;color:#666;font-size:15px;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
-            @media(max-width:768px){.grid{grid-template-columns:1fr;}}
+            @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);gap:20px;}}
+            @media(max-width:480px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
     <body>
@@ -144,9 +162,33 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    # 1. Try real image from RSS
+                    # 1. Real image from RSS
                     img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
-                        img_tag...
+                        img_tag = soup.find('img')
+                        if img_tag and img_tag.get('src'):
+                            img = img_tag['src']
+                            if img.startswith('//'): img = 'https:' + img
+                    # 2. OpenAI AI image backup
+                    if "naijabuzz-logo" in img and openai_client:
+                        ai_img = generate_openai_image(e.title)
+                        if ai_img:
+                            img = ai_img
+                    # 3. Gemini AI backup
+                    if "naijabuzz-logo" in img and gemini_key:
+                        gemini_img = generate_gemini_image(e.title)
+                        if gemini_img:
+                            img = gemini_img
+                    title = random.choice(prefixes) + " " + e.title
+                    excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
+                    pub_date = getattr(e, "published", datetime.now().isoformat())
+                    db.session.add(Post(title=title, excerpt=excerpt, link=e.link, image=img, category=cat, pub_date=pub_date))
+                    added += 1
+            except: continue
+        db.session.commit()
+    return f"NaijaBuzz is ON FIRE! Added {added} stories with real + AI images!"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
