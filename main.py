@@ -21,7 +21,7 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image")
+    image = db.Column(db.String(600), default="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
@@ -69,7 +69,7 @@ def index():
             {% if posts %}
                 {% for p in posts %}
                 <div class="card">
-                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image'">
+                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png'">
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -115,7 +115,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    img = "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
+                    img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
