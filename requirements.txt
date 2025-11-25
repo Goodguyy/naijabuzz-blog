@@ -4,4 +4,3 @@ gunicorn
 psycopg2-binary
 flask-sqlalchemy
 beautifulsoup4
-openai==1.51.2
