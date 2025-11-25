@@ -7,7 +7,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# OpenAI — v1.51.2 (the only version that works on Render right now)
+# OpenAI — v1.51.2 (the only version that works on Render)
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY')) if os.environ.get('OPENAI_API_KEY') else None
 
 # Database
