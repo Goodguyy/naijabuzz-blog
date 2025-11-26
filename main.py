@@ -22,7 +22,7 @@ class Post(db.Model):
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
     image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available")
-    category = db.Column(db.String(100)
+    category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
 with app.app_context():
@@ -41,49 +41,6 @@ CATEGORIES = {
     "viral": "Viral",
     "world": "World"
 }
-
-def extract_image(entry):
-    """Aggressive image extraction — works for 95%+ of Nigerian news RSS feeds"""
-    img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
-    
-    # 1. media:content (most common in Nigerian sites)
-    if hasattr(entry, 'media_content'):
-        for m in entry.media_content:
-            if m.get('url'):
-                return m['url']
-    
-    # 2. enclosures
-    if hasattr(entry, 'enclosures'):
-        for enc in entry.enclosures:
-            if 'image' in enc.get('type', '').lower() or enc.get('href'):
-                return enc.href
-    
-    # 3. media:thumbnail
-    if hasattr(entry, 'media_thumbnail'):
-        for t in entry.media_thumbnail:
-            if t.get('url'):
-                return t['url']
-    
-    # 4. content:encoded or summary HTML
-    content = getattr(entry, "content", None) or getattr(entry, "summary", "")
-    if isinstance(content, list):
-        content = content[0].get('value', '') if content else ''
-    if not content:
-        content = getattr(entry, "description", "")
-    
-    if content:
-        soup = BeautifulSoup(content, 'html.parser')
-        img_tag = soup.find('img')
-        if img_tag and img_tag.get('src'):
-            src = img_tag['src']
-            if src.startswith('//'): src = 'https:' + src
-            if src.startswith('/'): src = 'https://' + urlparse(entry.link).netloc + src
-            return src
-    
-    # 5. link rel="image_src" or og:image in entry.link page (fallback)
-    # (too slow for /generate — skip for speed)
-    
-    return img
 
 @app.route('/')
 def index():
@@ -109,7 +66,7 @@ def index():
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available">
         <meta name="theme-color" content="#00d4aa">
         
-        <!-- FAVICONS THAT WORK ON EVERY DEVICE -->
+        <!-- FAVICONS THAT WORK 100% -->
         <link rel="icon" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png" type="image/png">
         <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
         <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
@@ -193,23 +150,6 @@ def index():
     """
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected)
 
-# PWA Manifest
-@app.route('/manifest.json')
-def manifest():
-    return {
-        "name": "NaijaBuzz",
-        "short_name": "NaijaBuzz",
-        "description": "Latest Naija news, gossip, football & entertainment",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#1e1e1e",
-        "theme_color": "#00d4aa",
-        "icons": [
-            {"src": "https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png", "sizes": "512x512", "type": "image/png"}
-        ]
-    }, 200, {'Content-Type': 'application/json'}
-
 @app.route('/robots.txt')
 def robots():
     return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
@@ -261,50 +201,22 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    # SUPER AGGRESSIVE IMAGE EXTRACTION
                     img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
-                    # 1. media:content
-                    if hasattr(e, 'media_content'):
-                        for m in e.media_content:
-                            if m.get('url'):
-                                img = m['url']
-                                break
-                    # 2. enclosures
-                    elif hasattr(e, 'enclosures'):
-                        for enc in e.enclosures:
-                            if 'image' in enc.get('type', '').lower() or enc.get('href'):
-                                img = enc.href
-                                break
-                    # 3. media:thumbnail
-                    elif hasattr(e, 'media_thumbnail'):
-                        for t in e.media_thumbnail:
-                            if t.get('url'):
-                                img = t['url']
-                                break
-                    # 4. content/summary HTML
-                    else:
-                        content = ""
-                        if hasattr(e, 'content') and e.content:
-                            content = e.content[0].get('value', '') if isinstance(e.content, list) else e.content
-                        if not content:
-                            content = getattr(e, "summary", "") or getattr(e, "description", "")
-                        if content:
-                            soup = BeautifulSoup(content, 'html.parser')
-                            img_tag = soup.find('img')
-                            if img_tag:
-                                src = img_tag.get('src') or img_tag.get('data-src') or img_tag.get('data-lazy-src')
-                                if src:
-                                    if src.startswith('//'): src = 'https:' + src
-                                    img = src
-                    title = random.choice(prefixes) + " " " + e.title
+                    content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
+                    if content:
+                        soup = BeautifulSoup(content, 'html.parser')
+                        img_tag = soup.find('img')
+                        if img_tag and img_tag.get('src'):
+                            img = img_tag['src']
+                            if img.startswith('//'): img = 'https:' + img
+                    title = random.choice(prefixes) + " " + e.title
                     excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                     pub_date = getattr(e, "published", datetime.now().isoformat())
                     db.session.add(Post(title=title, excerpt=excerpt, link=e.link, image=img, category=cat, pub_date=pub_date))
                     added += 1
-            except Exception as ex:
-                continue
+            except: continue
         db.session.commit()
-    return f"NaijaBuzz healthy! Added {added} fresh stories with real images!"
+    return f"NaijaBuzz healthy! Added {added} fresh stories!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
