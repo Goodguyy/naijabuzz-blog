@@ -21,7 +21,7 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image")  # Light green placeholder
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
@@ -38,22 +38,14 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
-        <meta name="robots" content="index, follow">
-        <link rel="canonical" href="https://www.naijabuzz.com">
-        <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
-        <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
-        <meta property="og:url" content="https://www.naijabuzz.com">
-        <meta property="og:image" content="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
             .subtitle{color:#e8fff9;font-size:18px;}
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
-            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
-            .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
+            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);}
+            .card img{width:100%;height:240px;object-fit:cover;background:#00d4aa;color:white;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;text-align:center;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
@@ -117,28 +109,22 @@ def sitemap():
 @app.route('/generate')
 def generate():
     feeds = [
-        # NAIJA NEWS
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
         ("Naija News", "https://thenationonlineng.net/feed/"),
-        # GOSSIP & ENTERTAINMENT (Youth Favorites)
-        ("Gossip", "https://lindaikejisblog.com/feeds/posts/default"),
+        ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
-        ("Entertainment", "https://pulse.ng/rss"),
-        ("Entertainment", "https://notjustok.com/feed/"),
-        ("Viral", "https://legit.ng/rss"),
-        ("Lifestyle", "https://sisiyemmie.com/feed"),
-        ("True Stories", "https://knowefritin.ng/feed"),
-        # FOOTBALL & SPORTS
         ("Football", "https://www.goal.com/en-ng/feeds/news"),
         ("Football", "https://allnigeriasoccer.com/feed"),
         ("Sports", "https://www.completesports.com/feed/"),
-        # TECH & EDUCATION (Youth Interests)
-        ("Tech", "https://techcabal.com/feed/"),
-        ("Education", "https://myschoolgist.com/feed"),
-        # WORLD
         ("World", "https://bbc.com/news/world/rss.xml"),
+        ("Tech", "https://techcabal.com/feed/"),
+        ("Viral", "https://legit.ng/rss"),
+        ("Entertainment", "https://pulse.ng/rss"),
+        ("Entertainment", "https://notjustok.com/feed/"),
+        ("Lifestyle", "https://sisiyemmie.com/feed"),
+        ("Education", "https://myschoolgist.com/feed"),
     ]
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
