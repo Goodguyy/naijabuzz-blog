@@ -21,7 +21,7 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image")  # Light green placeholder
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
@@ -38,14 +38,13 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="google-site-verification" content="4kPcQivMifDmXTPlDllQ5uWQTonGWNBQAN9ERJMoDxI" />
         <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
         <meta name="robots" content="index, follow">
         <link rel="canonical" href="https://www.naijabuzz.com">
         <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
         <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
         <meta property="og:url" content="https://www.naijabuzz.com">
-        <meta property="og:image" content="https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png">
+        <meta property="og:image" content="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
@@ -77,7 +76,7 @@ def index():
             {% if posts %}
                 {% for p in posts %}
                 <div class="card">
-                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png'">
+                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image'">
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -109,25 +108,37 @@ def sitemap():
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://www.naijabuzz.com</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
     for p in posts:
-        safe_link = p.link.replace('&', '&amp;')
-        xml += f'  <url><loc>{safe_link}</loc><lastmod>{p.pub_date[:10]}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
+        safe_link = p.link.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        date_str = p.pub_date[:10] if p.pub_date and len(p.pub_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
+        xml += f'  <url><loc>{safe_link}</loc><lastmod>{date_str}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
 @app.route('/generate')
 def generate():
     feeds = [
+        # NAIJA NEWS
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
-        ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
+        ("Naija News", "https://thenationonlineng.net/feed/"),
+        # GOSSIP & ENTERTAINMENT (Youth Favorites)
+        ("Gossip", "https://lindaikejisblog.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
-        ("Football", "https://www.goal.com/en-ng/feeds/news"),
-        ("Sports", "https://www.completesports.com/feed/"),
-        ("World", "https://bbc.com/news/world/rss.xml"),
-        ("Tech", "https://techcabal.com/feed/"),
-        ("Viral", "https://legit.ng/rss"),
         ("Entertainment", "https://pulse.ng/rss"),
+        ("Entertainment", "https://notjustok.com/feed/"),
+        ("Viral", "https://legit.ng/rss"),
+        ("Lifestyle", "https://sisiyemmie.com/feed"),
+        ("True Stories", "https://knowefritin.ng/feed"),
+        # FOOTBALL & SPORTS
+        ("Football", "https://www.goal.com/en-ng/feeds/news"),
+        ("Football", "https://allnigeriasoccer.com/feed"),
+        ("Sports", "https://www.completesports.com/feed/"),
+        # TECH & EDUCATION (Youth Interests)
+        ("Tech", "https://techcabal.com/feed/"),
+        ("Education", "https://myschoolgist.com/feed"),
+        # WORLD
+        ("World", "https://bbc.com/news/world/rss.xml"),
     ]
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
@@ -139,7 +150,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    img = "https://i.ibb.co.com/0jR9Y3v/naijabuzz-logo.png"
+                    img = "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz+Image"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
