@@ -46,9 +46,9 @@ def index():
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .img-container{position:relative;width:100%;height:240px;background:#00d4aa;display:flex;align-items:center;justify-content:center;}
+            .img-container{position:relative;width:100%;height:240px;background:#00d4aa;}
             .card img{width:100%;height:240px;object-fit:cover;position:absolute;top:0;left:0;border-radius:18px 18px 0 0;}
-            .placeholder-text{position:absolute;color:white;font-size:20px;font-weight:bold;text-align:center;padding:20px;z-index:1;}
+            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:22px;font-weight:bold;text-align:center;z-index:1;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
@@ -72,7 +72,9 @@ def index():
                 {% for p in posts %}
                 <div class="card">
                     <div class="img-container">
-                        <div class="placeholder-text">NaijaBuzz.com<br>No Image Available</div>
+                        {% if 'placeholder.com' in p.image %}
+                            <div class="placeholder-text">NaijaBuzz.com<br>No Image Available</div>
+                        {% endif %}
                         <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'">
                     </div>
                     <div class="content">
@@ -118,14 +120,19 @@ def generate():
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
+        ("Naija News", "https://thenationonlineng.net/feed/"),
         ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
         ("Football", "https://www.goal.com/en-ng/feeds/news"),
+        ("Football", "https://allnigeriasoccer.com/feed"),
         ("Sports", "https://www.completesports.com/feed/"),
         ("World", "https://bbc.com/news/world/rss.xml"),
         ("Tech", "https://techcabal.com/feed/"),
         ("Viral", "https://legit.ng/rss"),
         ("Entertainment", "https://pulse.ng/rss"),
+        ("Entertainment", "https://notjustok.com/feed/"),
+        ("Lifestyle", "https://sisiyemmie.com/feed"),
+        ("Education", "https://myschoolgist.com/feed"),
     ]
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
