@@ -21,24 +21,25 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=NaijaBuzz%0ANo+Image+Available")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
 with app.app_context():
     db.create_all()
 
-# Categories for tabs
 CATEGORIES = {
     "all": "All News",
     "naija news": "Naija News",
     "gossip": "Gossip",
     "football": "Football",
     "sports": "Sports",
-    "world": "World",
+    "entertainment": "Entertainment",
+    "lifestyle": "Lifestyle",
+    "education": "Education",
     "tech": "Tech",
     "viral": "Viral",
-    "entertainment": "Entertainment"
+    "world": "World"
 }
 
 @app.route('/')
@@ -56,20 +57,22 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
-            header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
+            header{background:#1a1a1a;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
-            .subtitle{color:#e8fff9;font-size:18px;}
+            .subtitle{color:#e8e8e8;font-size:18px;}
             .tabs{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:20px 0;background:#fff;padding:15px;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,0.1);}
-            .tab{padding:12px 24px;background:#00b894;color:white;border-radius:10px;font-weight:bold;text-decoration:none;transition:0.3s;}
-            .tab:hover{background:#009977;}
-            .tab.active{background:#005f56;}
+            .tab{padding:12px 24px;background:#2c2c2c;color:white;border-radius:10px;font-weight:bold;text-decoration:none;transition:0.3s;}
+            .tab:hover{background:#444;}
+            .tab.active{background:#00d4aa;}
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
+            .img-container{position:relative;width:100%;height:240px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;}
+            .card img{width:100%;height:240px;object-fit:cover;position:absolute;top:0;left:0;border-radius:18px 18px 0 0;}
+            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.2;z-index:2;display:none;}
+            .no-image .placeholder-text{display:block;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
@@ -77,6 +80,7 @@ def index():
             .meta{font-size:14px;color:#00d4aa;font-weight:bold;margin-bottom:10px;}
             .card p{color:#444;font-size:16px;line-height:1.5;margin:0 0 15px 0;}
             .readmore{background:#00d4aa;color:white;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;}
+            .readmore:hover{background:#00b894;}
             footer{text-align:center;padding:50px;color:#666;font-size:15px;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
             @media(max-width:600px){.tabs{flex-direction:column;align-items:center;}.grid{grid-template-columns:repeat(2,1fr);gap:20px;}}
@@ -98,8 +102,11 @@ def index():
         <div class="grid">
             {% if posts %}
                 {% for p in posts %}
-                <div class="card">
-                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image'">
+                <div class="card {{ 'no-image' if 'placeholder.com' in p.image else '' }}">
+                    <div class="img-container">
+                        <div class="placeholder-text">NaijaBuzz<br>No Image Available</div>
+                        <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.parentElement.parentElement.classList.add('no-image')">
+                    </div>
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -143,6 +150,7 @@ def generate():
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
+        ("Naija News", "https://thenationonlineng.net/feed/"),
         ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
         ("Football", "https://www.goal.com/en-ng/feeds/news"),
@@ -166,7 +174,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    img = "https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image"
+                    img = "https://via.placeholder.com/800x450/1a1a1a/ffffff?text=NaijaBuzz%0ANo+Image+Available"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
