@@ -59,13 +59,13 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
         <meta name="robots" content="index, follow">
-        <link rel="canonical" href="https://www.naijabuzz.com">
+        <link rel="canonical" href="https://blog.naijabuzz.com">
         <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
         <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
-        <meta property="og:url" content="https://www.naijabuzz.com">
+        <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available">
         <style>
-            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;}
+            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;}
             header{background:#1e1e1e;color:white;text-align:center;padding:20px;position:sticky;top:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
             h1{margin:0;font-size:32px;font-weight:900;letter-spacing:1px;}
             .tagline{font-size:17px;margin-top:6px;opacity:0.95;}
@@ -91,8 +91,7 @@ def index():
             .readmore:hover{background:#008c45;}
             footer{text-align:center;padding:50px;color:#666;font-size:15px;background:#fff;margin-top:40px;border-top:1px solid #eee;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
-            @media(max-width:768px){.grid{grid-template-columns:repeat(2,1fr);gap:22px;}}
-            @media(max-width:480px){.grid{grid-template-columns:1fr;}}
+            @media(max-width:600px){.grid{grid-template-columns:1fr;gap:22px;}}
         </style>
     </head>
     <body>
@@ -131,7 +130,7 @@ def index():
                 </p></div>
             {% endif %}
         </div>
-        <footer>© 2025 NaijaBuzz • www.naijabuzz.com • Auto-updated every few minutes</footer>
+        <footer>© 2025 NaijaBuzz • blog.naijabuzz.com • Auto-updated every few minutes</footer>
     </body>
     </html>
     """
@@ -139,11 +138,11 @@ def index():
 
 @app.route('/robots.txt')
 def robots():
-    return "User-agent: *\nAllow: /\nSitemap: https://www.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+    return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
 
 @app.route('/sitemap.xml')
 def sitemap():
-    base_url = "https://www.naijabuzz.com"
+    base_url = "https://blog.naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += f'  <url><loc>{base_url}</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
