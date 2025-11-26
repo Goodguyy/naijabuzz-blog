@@ -65,33 +65,42 @@ def index():
         <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available">
         <style>
-            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;}
-            header{background:#1e1e1e;color:white;text-align:center;padding:20px;position:sticky;top:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
-            h1{margin:0;font-size:32px;font-weight:900;letter-spacing:1px;}
-            .tagline{font-size:17px;margin-top:6px;opacity:0.95;}
-            .tabs-container{background:#fff;padding:12px 0;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;box-shadow:0 4px 10px rgba(0,0,0,0.1);position:sticky;top:78px;z-index:9;}
+            :root{--primary:#00d4aa;--dark:#1a1a1a;--light:#f8f9fa;--text:#2d2d2d;--accent:#00a890;}
+            *{box-sizing:border-box;}
+            body{font-family:'Segoe UI',Arial,sans-serif;background:var(--light);margin:0;color:var(--text);}
+            header{background:var(--dark);color:white;text-align:center;padding:22px 15px;position:sticky;top:0;z-index:10;box-shadow:0 4px 15px rgba(0,0,0,0.15);}
+            h1{margin:0;font-size:34px;font-weight:900;letter-spacing:1.2px;}
+            .tagline{font-size:18px;margin-top:8px;opacity:0.95;font-weight:500;}
+            .tabs-container{background:#fff;padding:14px 0;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;box-shadow:0 4px 15px rgba(0,0,0,0.1);position:sticky;top:82px;z-index:9;}
             .tabs{display:inline-flex;gap:12px;padding:0 15px;}
-            .tab{padding:10px 20px;background:#333;color:white;border-radius:30px;font-weight:bold;font-size:14px;text-decoration:none;transition:0.3s;}
-            .tab:hover{background:#00a651;}
-            .tab.active{background:#00d4aa;}
-            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
-            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.12);transition:all 0.3s;}
-            .card:hover{transform:translateY(-12px);box-shadow:0 25px 50px rgba(0,0,0,0.2);}
-            .img-container{position:relative;width:100%;height:240px;background:#1e1e1e;display:flex;align-items:center;justify-content:center;}
-            .card img{width:100%;height:240px;object-fit:cover;position:absolute;top:0;left:0;border-radius:18px 18px 0 0;}
-            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.3;z-index:2;display:none;}
+            .tab{padding:11px 22px;background:var(--dark);color:white;border-radius:30px;font-weight:600;font-size:14.5px;text-decoration:none;transition:0.3s;border:2px solid transparent;}
+            .tab:hover{background:var(--accent);transform:scale(1.05);}
+            .tab.active{background:var(--primary);border-color:var(--primary);font-weight:700;}
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;max-width:1400px;margin:35px auto;padding:0 20px;}
+            .card{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,0.12);transition:all 0.4s ease;}
+            .card:hover{transform:translateY(-12px);box-shadow:0 30px 60px rgba(0,0,0,0.2);}
+            .img-container{position:relative;width:100%;height:250px;background:#1e1e1e;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+            .card img{width:100%;height:250px;object-fit:cover;position:absolute;top:0;left:0;border-radius:20px 20px 0 0;transition:opacity 0.4s;}
+            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:19px;font-weight:800;text-align:center;line-height:1.4;z-index:2;display:none;pointer-events:none;}
             .no-image .placeholder-text{display:block;}
-            .content{padding:22px;}
-            .card h2{font-size:21px;line-height:1.3;margin:0 0 12px 0;}
-            .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
-            .card h2 a:hover{color:#00a651;}
-            .meta{font-size:14px;color:#00a651;font-weight:bold;margin-bottom:10px;}
-            .card p{color:#444;font-size:16px;line-height:1.6;margin:0 0 15px 0;}
-            .readmore{background:#00a651;color:white;padding:12px 22px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;transition:0.3s;}
-            .readmore:hover{background:#008c45;}
-            footer{text-align:center;padding:50px;color:#666;font-size:15px;background:#fff;margin-top:40px;border-top:1px solid #eee;}
+            .no-image img{display:none;}
+            .content{padding:24px;}
+            .card h2{font-size:21.5px;line-height:1.35;margin:0 0 12px 0;font-weight:700;}
+            .card h2 a{color:#1a1a1a;text-decoration:none;transition:0.3s;}
+            .card h2 a:hover{color:var(--primary);}
+            .meta{font-size:14px;color:var(--primary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
+            .card p{color:#444;font-size:16px;line-height:1.6;margin:0 0 16px 0;}
+            .readmore{background:var(--primary);color:white;padding:13px 24px;border-radius:12px;text-decoration:none;font-weight:700;display:inline-block;font-size:15px;transition:0.3s;}
+            .readmore:hover{background:var(--accent);transform:scale(1.05);}
+            footer{text-align:center;padding:60px 20px;color:#666;font-size:15px;background:#fff;margin-top:50px;border-top:1px solid #eee;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
-            @media(max-width:600px){.grid{grid-template-columns:1fr;gap:22px;}}
+            @media(max-width:600px){
+                .grid{grid-template-columns:1fr;gap:24px;}
+                .tabs{gap:10px;}
+                .tab{padding:10px 16px;font-size:13.5px;}
+                header{padding:18px 10px;}
+                h1{font-size:28px;}
+            }
         </style>
     </head>
     <body>
@@ -125,7 +134,7 @@ def index():
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:#00a651;">
+                <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:var(--primary);">
                     No stories yet — check back soon!
                 </p></div>
             {% endif %}
