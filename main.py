@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
 from bs4 import BeautifulSoup
+from dateutil import parser as date_parser  # Add this import at top
 
 app = Flask(__name__)
 
@@ -65,7 +66,6 @@ def index():
         <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available">
         <meta name="theme-color" content="#00d4aa">
-        
         <!-- FAVICONS THAT WORK 100% -->
         <link rel="icon" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png" type="image/png">
         <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
@@ -73,7 +73,6 @@ def index():
         <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
         <link rel="apple-touch-icon" sizes="180x180" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
         <link rel="manifest" href="/manifest.json">
-        
         <style>
             :root{--primary:#00d4aa;--dark:#1a1a1a;--light:#f8f9fa;--text:#2c2c2c;--accent:#00a890;--gray:#f1f1f1;}
             *{box-sizing:border-box;}
@@ -160,14 +159,24 @@ def sitemap():
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += f'  <url><loc>{base_url}</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
+    
+    # Category tabs
     for cat_key in CATEGORIES.keys():
         if cat_key != "all":
             xml += f'  <url><loc>{base_url}/?cat={cat_key}</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n'
+    
+    # Posts with valid dates and escaped URLs
     posts = Post.query.all()
     for p in posts:
-        safe_link = p.link.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        date_str = p.pub_date[:10] if p.pub_date and len(p.pub_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
+        safe_link = p.link.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&apos;')
+        # Parse any date format and convert to YYYY-MM-DD
+        try:
+            parsed_date = date_parser.parse(p.pub_date)
+            date_str = parsed_date.strftime("%Y-%m-%d")
+        except:
+            date_str = datetime.now().strftime("%Y-%m-%d")
         xml += f'  <url><loc>{safe_link}</loc><lastmod>{date_str}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
+    
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
