@@ -21,7 +21,7 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=NaijaBuzz%0ANo+Image")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
@@ -57,34 +57,48 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
+        <meta name="robots" content="index, follow">
+        <link rel="canonical" href="https://www.naijabuzz.com">
+        <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
+        <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
+        <meta property="og:url" content="https://www.naijabuzz.com">
+        <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available">
         <style>
-            body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;}
-            header{background:#1a1a1a;color:white;text-align:center;padding:20px;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-            h1{margin:0;font-size:28px;font-weight:bold;}
-            .tabs-container{background:#fff;padding:10px 0;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;box-shadow:0 4px 10px rgba(0,0,0,0.1);position:sticky;top:66px;z-index:9;}
-            .tabs{display:inline-flex;gap:10px;padding:0 15px;}
-            .tab{padding:10px 18px;background:#2c2c2c;color:white;border-radius:25px;font-weight:bold;font-size:14px;text-decoration:none;transition:0.3s;}
-            .tab:hover{background:#444;}
+            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f4;margin:0;}
+            header{background:#1e1e1e;color:white;text-align:center;padding:20px;position:sticky;top:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+            h1{margin:0;font-size:32px;font-weight:900;letter-spacing:1px;}
+            .tagline{font-size:17px;margin-top:6px;opacity:0.95;}
+            .tabs-container{background:#fff;padding:12px 0;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;box-shadow:0 4px 10px rgba(0,0,0,0.1);position:sticky;top:78px;z-index:9;}
+            .tabs{display:inline-flex;gap:12px;padding:0 15px;}
+            .tab{padding:10px 20px;background:#333;color:white;border-radius:30px;font-weight:bold;font-size:14px;text-decoration:none;transition:0.3s;}
+            .tab:hover{background:#00a651;}
             .tab.active{background:#00d4aa;}
-            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:25px;max-width:1400px;margin:20px auto;padding:0 15px;}
-            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
-            .card:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .card img{width:100%;height:220px;object-fit:cover;}
-            .content{padding:18px;}
-            .card h2{font-size:19px;line-height:1.3;margin:0 0 10px 0;}
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
+            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.12);transition:all 0.3s;}
+            .card:hover{transform:translateY(-12px);box-shadow:0 25px 50px rgba(0,0,0,0.2);}
+            .img-container{position:relative;width:100%;height:240px;background:#1e1e1e;display:flex;align-items:center;justify-content:center;}
+            .card img{width:100%;height:240px;object-fit:cover;position:absolute;top:0;left:0;border-radius:18px 18px 0 0;}
+            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.3;z-index:2;display:none;}
+            .no-image .placeholder-text{display:block;}
+            .content{padding:22px;}
+            .card h2{font-size:21px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
-            .card h2 a:hover{color:#00d4aa;}
-            .meta{font-size:13px;color:#00d4aa;font-weight:bold;margin-bottom:8px;}
-            .card p{color:#444;font-size:15px;line-height:1.5;margin:0;}
-            .readmore{background:#00d4aa;color:white;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block;margin-top:12px;font-size:14px;}
-            footer{text-align:center;padding:40px;color:#666;font-size:14px;background:#fff;margin-top:30px;}
+            .card h2 a:hover{color:#00a651;}
+            .meta{font-size:14px;color:#00a651;font-weight:bold;margin-bottom:10px;}
+            .card p{color:#444;font-size:16px;line-height:1.6;margin:0 0 15px 0;}
+            .readmore{background:#00a651;color:white;padding:12px 22px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;transition:0.3s;}
+            .readmore:hover{background:#008c45;}
+            footer{text-align:center;padding:50px;color:#666;font-size:15px;background:#fff;margin-top:40px;border-top:1px solid #eee;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
-            @media(max-width:600px){.grid{grid-template-columns:1fr;gap:20px;}}
+            @media(max-width:768px){.grid{grid-template-columns:repeat(2,1fr);gap:22px;}}
+            @media(max-width:480px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
     <body>
         <header>
             <h1>NaijaBuzz</h1>
+            <div class="tagline">Fresh Naija News • Football • Gossip • World Updates</div>
         </header>
 
         <div class="tabs-container">
@@ -98,8 +112,11 @@ def index():
         <div class="grid">
             {% if posts %}
                 {% for p in posts %}
-                <div class="card">
-                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/1a1a1a/ffffff?text=NaijaBuzz%0ANo+Image'">
+                <div class="card {{ 'no-image' if 'placeholder.com' in p.image else '' }}">
+                    <div class="img-container">
+                        <div class="placeholder-text">NaijaBuzz.com<br>No Image Available</div>
+                        <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.parentElement.parentElement.classList.add('no-image')">
+                    </div>
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -109,8 +126,8 @@ def index():
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:#00d4aa;">
-                    No stories yet in this category — check back soon!
+                <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:#00a651;">
+                    No stories yet — check back soon!
                 </p></div>
             {% endif %}
         </div>
@@ -126,14 +143,18 @@ def robots():
 
 @app.route('/sitemap.xml')
 def sitemap():
-    posts = Post.query.all()
+    base_url = "https://www.naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    xml += '  <url><loc>https://www.naijabuzz.com</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
+    xml += f'  <url><loc>{base_url}</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
+    for cat_key in CATEGORIES.keys():
+        if cat_key != "all":
+            xml += f'  <url><loc>{base_url}/?cat={cat_key}</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n'
+    posts = Post.query.all()
     for p in posts:
         safe_link = p.link.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         date_str = p.pub_date[:10] if p.pub_date and len(p.pub_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
-        xml += f'  <url><loc>{safe_link}</loc><lastmod>{date_str}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
+        xml += f'  <url><loc>{safe_link}</loc><lastmod>{date_str}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
@@ -167,7 +188,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    img = "https://via.placeholder.com/800x450/1a1a1a/ffffff?text=NaijaBuzz%0ANo+Image"
+                    img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
