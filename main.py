@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
 from datetime import datetime
@@ -21,16 +21,34 @@ class Post(db.Model):
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz.com%0ANo+Image+Available")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
 with app.app_context():
     db.create_all()
 
+# Categories for tabs
+CATEGORIES = {
+    "all": "All News",
+    "naija news": "Naija News",
+    "gossip": "Gossip",
+    "football": "Football",
+    "sports": "Sports",
+    "world": "World",
+    "tech": "Tech",
+    "viral": "Viral",
+    "entertainment": "Entertainment"
+}
+
 @app.route('/')
 def index():
-    posts = Post.query.order_by(Post.pub_date.desc()).limit(90).all()
+    selected = request.args.get('cat', 'all').lower()
+    if selected == 'all':
+        posts = Post.query.order_by(Post.pub_date.desc()).limit(90).all()
+    else:
+        posts = Post.query.filter(Post.category.ilike(f"%{selected}%")).order_by(Post.pub_date.desc()).limit(90).all()
+
     html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -38,17 +56,20 @@ def index():
         <meta charset="UTF-8">
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;margin:0;padding:10px;}
             header{background:#00d4aa;color:white;text-align:center;padding:25px;border-radius:15px;margin:15px auto;max-width:1400px;}
             h1{margin:0;font-size:32px;font-weight:bold;}
             .subtitle{color:#e8fff9;font-size:18px;}
+            .tabs{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:20px 0;background:#fff;padding:15px;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+            .tab{padding:12px 24px;background:#00b894;color:white;border-radius:10px;font-weight:bold;text-decoration:none;transition:0.3s;}
+            .tab:hover{background:#009977;}
+            .tab.active{background:#005f56;}
             .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;max-width:1400px;margin:30px auto;padding:0 15px;}
             .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.3s;}
             .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
-            .img-container{position:relative;width:100%;height:240px;background:#00d4aa;}
-            .card img{width:100%;height:240px;object-fit:cover;position:absolute;top:0;left:0;border-radius:18px 18px 0 0;}
-            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:22px;font-weight:bold;text-align:center;z-index:1;}
+            .card img{width:100%;height:240px;object-fit:cover;border-radius:18px 18px 0 0;}
             .content{padding:20px;}
             .card h2{font-size:20px;line-height:1.3;margin:0 0 12px 0;}
             .card h2 a{color:#1a1a1a;text-decoration:none;font-weight:bold;}
@@ -58,7 +79,7 @@ def index():
             .readmore{background:#00d4aa;color:white;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:bold;display:inline-block;}
             footer{text-align:center;padding:50px;color:#666;font-size:15px;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr);}}
-            @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);gap:20px;}}
+            @media(max-width:600px){.tabs{flex-direction:column;align-items:center;}.grid{grid-template-columns:repeat(2,1fr);gap:20px;}}
             @media(max-width:480px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
@@ -67,16 +88,18 @@ def index():
             <h1>NaijaBuzz</h1>
             <div class="subtitle">Fresh Naija News • Football • Gossip • World Updates</div>
         </header>
+
+        <div class="tabs">
+            {% for key, name in categories.items() %}
+            <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
+            {% endfor %}
+        </div>
+
         <div class="grid">
             {% if posts %}
                 {% for p in posts %}
                 <div class="card">
-                    <div class="img-container">
-                        {% if 'placeholder.com' in p.image %}
-                            <div class="placeholder-text">NaijaBuzz.com<br>No Image Available</div>
-                        {% endif %}
-                        <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'">
-                    </div>
+                    <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image'">
                     <div class="content">
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ p.pub_date[:16] }}</div>
@@ -87,7 +110,7 @@ def index():
                 {% endfor %}
             {% else %}
                 <div class="card"><p style="text-align:center;padding:100px;font-size:22px;color:#00d4aa;">
-                    Loading the hottest Naija gist... Refresh in a minute!
+                    No stories yet in this category — check back soon!
                 </p></div>
             {% endif %}
         </div>
@@ -95,7 +118,7 @@ def index():
     </body>
     </html>
     """
-    return render_template_string(html, posts=posts)
+    return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected)
 
 @app.route('/robots.txt')
 def robots():
@@ -120,7 +143,6 @@ def generate():
         ("Naija News", "https://punchng.com/feed/"),
         ("Naija News", "https://vanguardngr.com/feed"),
         ("Naija News", "https://premiumtimesng.com/feed"),
-        ("Naija News", "https://thenationonlineng.net/feed/"),
         ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
         ("Gossip", "https://bellanaija.com/feed/"),
         ("Football", "https://www.goal.com/en-ng/feeds/news"),
@@ -144,7 +166,7 @@ def generate():
                 for e in f.entries[:12]:
                     if Post.query.filter_by(link=e.link).first():
                         continue
-                    img = "https://via.placeholder.com/800x450/00d4aa/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
+                    img = "https://via.placeholder.com/800x450/222222/ffffff?text=NaijaBuzz%0ANo+Image"
                     content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                     if content:
                         soup = BeautifulSoup(content, 'html.parser')
