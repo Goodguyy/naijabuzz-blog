@@ -1,13 +1,13 @@
-# main.py - NaijaBuzz FINAL PERFECTION (2025) - Never breaks, never empty!
+# main.py - NaijaBuzz FINAL PERFECTION (2025) - Always fresh, always beautiful
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
-import os, feedparser, random
-from datetime import datetime
+import os, feedparser, random, re
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# Database - Render.com ready
+# Database
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -25,7 +25,7 @@ class Post(db.Model):
     link = db.Column(db.String(600), unique=True)
     image = db.Column(db.String(800), default="https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz")
     category = db.Column(db.String(100))
-    pub_date = db.Column(db.String(100))
+    pub_date = db.Column(db.DateTime, index=True)  # Proper datetime for correct sorting
 
 with app.app_context():
     db.create_all()
@@ -55,6 +55,44 @@ FEEDS = [
     ("Education", "https://myschoolgist.com/feed"),
 ]
 
+# 95%+ REAL IMAGE EXTRACTOR
+def extract_image(entry):
+    default = "https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz"
+    candidates = set()
+    html = ""
+    for field in ['summary', 'content', 'description', 'summary_detail']:
+        if hasattr(entry, field):
+            val = getattr(entry, field)
+            html += val.get('value', '') if isinstance(val, dict) else str(val)
+    if html:
+        soup = BeautifulSoup(html, 'html.parser')
+        for img in soup.find_all('img'):
+            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+            if src:
+                if src.startswith('//'): src = 'https:' + src
+                if src.startswith('http'):
+                    candidates.add(src)
+    for url in candidates:
+        url = re.sub(r'\?.*$', '', url)
+        if url.lower().endswith(('.jpg','.jpeg','.png','.webp','.gif')) or 'image' in url.lower():
+            return url
+    return default
+
+# Time ago filter (Just now, 2 hours ago, etc.)
+def time_ago(dt):
+    if not dt: return "Just now"
+    now = datetime.now(timezone.utc)
+    diff = now - dt
+    if diff.days >= 30: return dt.strftime("%b %d")
+    elif diff.days >= 1: return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    elif diff.seconds >= 7200: return f"{diff.seconds // 3600} hours ago"
+    elif diff.seconds >= 3600: return "1 hour ago"
+    elif diff.seconds >= 120: return f"{diff.seconds // 60} minutes ago"
+    elif diff.seconds >= 60: return "1 minute ago"
+    else: return "Just now"
+
+app.jinja_env.filters['time_ago'] = time_ago
+
 @app.route('/')
 def index():
     cat = request.args.get('cat', 'all').lower()
@@ -72,26 +110,24 @@ def generate():
     random.shuffle(FEEDS)
     for cat, url in FEEDS:
         try:
-            feed = feedparser.parse(url, request_headers={'User-Agent': 'NaijaBuzzBot/1.0'})
+            feed = feedparser.parse(url, request_headers={'User-Agent': 'NaijaBuzzBot/3.0'})
             for e in feed.entries[:10]:
-                # CORRECT & SAFE CHECK — only skips if EXACT link already exists
                 if not hasattr(e, 'link') or Post.query.filter_by(link=e.link).first():
                     continue
 
-                # BEST IMAGE EXTRACTION (95%+ success rate)
-                image = "https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz"
-                content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
-                if content:
-                    soup = BeautifulSoup(content, 'html.parser')
-                    img = soup.find('img')
-                    if img:
-                        src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
-                        if src:
-                            image = src if src.startswith('http') else 'https:' + src
+                # CORRECT DATE PARSING
+                pub_date = datetime.now(timezone.utc)
+                if hasattr(e, 'published_parsed') and e.published_parsed:
+                    pub_date = datetime(*e.published_parsed[:6], tzinfo=timezone.utc)
+                elif hasattr(e, 'updated_parsed') and e.updated_parsed:
+                    pub_date = datetime(*e.updated_parsed[:6], tzinfo=timezone.utc)
 
-                title = random.choice(prefixes) + " " + BeautifulSoup(e.title, 'html.parser').get_text()[:200]
+                image = extract_image(e)
+                raw_title = BeautifulSoup(e.title, 'html.parser').get_text()
+                title = random.choice(prefixes) + " " + raw_title[:200]
+
+                content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                 excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
-                pub_date = getattr(e, "published", datetime.utcnow().isoformat())
 
                 db.session.add(Post(
                     title=title,
@@ -102,17 +138,16 @@ def generate():
                     pub_date=pub_date
                 ))
                 added += 1
-        except:
-            continue
+        except: continue
 
     if added:
         db.session.commit()
 
-    return f"NaijaBuzz ALIVE! Added {added} fresh stories on top! Never empty again!", 200
+    return f"NaijaBuzz FRESH! Added {added} new stories on top!", 200
 
 HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NaijaBuzz - Nigeria News, Football, Gossip & Entertainment</title>
-<meta name="description" content="Latest Naija news, BBNaija, Premier League, Tech & World updates - refreshed every 5 mins!">
+<meta name="description" content="Latest Naija news, BBNaija, Premier League, Tech & World updates - updated every 5 mins!">
 <link rel="canonical" href="https://blog.naijabuzz.com"><link rel="icon" href="https://i.ibb.co/7Y4pY3v/naijabuzz-favicon.png">
 <style>
     :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--accent:#00d4aa;--accent2:#22d3ee;}
@@ -135,6 +170,7 @@ HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name=
     .card h2 a{color:var(--text);text-decoration:none;font-weight:700;}
     .card h2 a:hover{color:var(--accent);}
     .meta{font-size:0.85rem;color:var(--accent);font-weight:700;text-transform:uppercase;margin-bottom:0.5rem;}
+    .time{font-size:0.8rem;color:#94a3b8;margin-bottom:0.8rem;}
     .excerpt{color:#94a3b8;}
     .readmore{display:inline-block;margin-top:1rem;padding:10px 22px;background:var(--accent);color:#000;font-weight:bold;border-radius:50px;text-decoration:none;}
     .readmore:hover{background:var(--accent2);}
@@ -150,29 +186,30 @@ HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name=
 </div></div>
 <div class="container"><div class="grid">
 {% for p in posts %}
-<div class="card">
+<article class="card" itemscope itemtype="https://schema.org/NewsArticle">
 <a href="{{p.link}}" target="_blank" rel="noopener">
 {% if 'placeholder.com' in p.image %}
 <div class="placeholder"><div>NaijaBuzz</div></div>
 {% else %}
-<img src="{{p.image}}" alt="{{p.title}}" loading="lazy" onerror="this.style.display='none';this.previousElementSibling.style.display='flex'">
+<img src="{{p.image}}" alt="{{p.title}}" loading="lazy" itemprop="image">
 <div class="placeholder" style="display:none"><div>NaijaBuzz</div></div>
 {% endif %}
 </a>
 <div class="card-content">
 <div class="meta">{{p.category.upper()}}</div>
-<h2><a href="{{p.link}}" target="_blank" rel="noopener">{{p.title}}</a></h2>
-{% if p.excerpt %}<p class="excerpt">{{p.excerpt}}</p>{% endif %}
-<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</a>
-</div></div>
+<h2 itemprop="headline"><a href="{{p.link}}" target="_blank" rel="noopener" itemprop="url">{{p.title}}</a></h2>
+<div class="time"><time datetime="{{p.pub_date.isoformat()}}" itemprop="datePublished">{{p.pub_date|time_ago}}</time></div>
+{% if p.excerpt %}<p class="excerpt" itemprop="description">{{p.excerpt}}</p>{% endif %}
+<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</ hallwaysa>
+</div>
+</article>
 {% endfor %}
 </div></div>
-<footer>© 2025 NaijaBuzz • Never empty • Real images • Auto-updated every 5 mins • Made in Nigeria</footer>
+<footer>© 2025 NaijaBuzz • Always fresh • Real images • Made in Nigeria</footer>
 </body></html>"""
 
 @app.route('/robots.txt')
-def robots():
-    return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
