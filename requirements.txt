@@ -1,6 +1,7 @@
-flask
-feedparser
-gunicorn
-psycopg2-binary
-flask-sqlalchemy
-beautifulsoup4
+Flask==3.1.2
+feedparser==6.0.12
+gunicorn==23.0.0
+psycopg2-binary==2.9.11
+Flask-SQLAlchemy==3.1.1
+beautifulsoup4==4.14.2
+python-dateutil==2.9.0.post0   # ← THIS LINE FIXES EVERYTHING!
