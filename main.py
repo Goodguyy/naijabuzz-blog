@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz FINAL PERFECTION (2025) - Always fresh, always beautiful
+# main.py - NaijaBuzz FINAL BULLETPROOF VERSION (2025) - ZERO ERRORS
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, re
@@ -25,7 +25,7 @@ class Post(db.Model):
     link = db.Column(db.String(600), unique=True)
     image = db.Column(db.String(800), default="https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz")
     category = db.Column(db.String(100))
-    pub_date = db.Column(db.DateTime, index=True)  # Proper datetime for correct sorting
+    pub_date = db.Column(db.DateTime, index=True)
 
 with app.app_context():
     db.create_all()
@@ -55,7 +55,6 @@ FEEDS = [
     ("Education", "https://myschoolgist.com/feed"),
 ]
 
-# 95%+ REAL IMAGE EXTRACTOR
 def extract_image(entry):
     default = "https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz"
     candidates = set()
@@ -67,18 +66,17 @@ def extract_image(entry):
     if html:
         soup = BeautifulSoup(html, 'html.parser')
         for img in soup.find_all('img'):
-            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
             if src:
                 if src.startswith('//'): src = 'https:' + src
                 if src.startswith('http'):
                     candidates.add(src)
     for url in candidates:
         url = re.sub(r'\?.*$', '', url)
-        if url.lower().endswith(('.jpg','.jpeg','.png','.webp','.gif')) or 'image' in url.lower():
+        if url.lower().endswith(('.jpg','.jpeg','.png','.webp','.gif')):
             return url
     return default
 
-# Time ago filter (Just now, 2 hours ago, etc.)
 def time_ago(dt):
     if not dt: return "Just now"
     now = datetime.now(timezone.utc)
@@ -106,7 +104,6 @@ def index():
 def generate():
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
-
     random.shuffle(FEEDS)
     for cat, url in FEEDS:
         try:
@@ -114,36 +111,19 @@ def generate():
             for e in feed.entries[:10]:
                 if not hasattr(e, 'link') or Post.query.filter_by(link=e.link).first():
                     continue
-
-                # CORRECT DATE PARSING
                 pub_date = datetime.now(timezone.utc)
                 if hasattr(e, 'published_parsed') and e.published_parsed:
                     pub_date = datetime(*e.published_parsed[:6], tzinfo=timezone.utc)
-                elif hasattr(e, 'updated_parsed') and e.updated_parsed:
-                    pub_date = datetime(*e.updated_parsed[:6], tzinfo=timezone.utc)
-
                 image = extract_image(e)
-                raw_title = BeautifulSoup(e.title, 'html.parser').get_text()
-                title = random.choice(prefixes) + " " + raw_title[:200]
-
+                title = random.choice(prefixes) + " " + BeautifulSoup(e.title, 'html.parser').get_text()[:200]
                 content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                 excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
-
-                db.session.add(Post(
-                    title=title,
-                    excerpt=excerpt,
-                    link=e.link,
-                    image=image,
-                    category=cat,
-                    pub_date=pub_date
-                ))
+                db.session.add(Post(title=title, excerpt=excerpt, link=e.link,
+                                  image=image, category=cat, pub_date=pub_date))
                 added += 1
         except: continue
-
-    if added:
-        db.session.commit()
-
-    return f"NaijaBuzz FRESH! Added {added} new stories on top!", 200
+    if added: db.session.commit()
+    return f"NaijaBuzz FRESH! Added {added} new stories!", 200
 
 HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NaijaBuzz - Nigeria News, Football, Gossip & Entertainment</title>
@@ -200,7 +180,7 @@ HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name=
 <h2 itemprop="headline"><a href="{{p.link}}" target="_blank" rel="noopener" itemprop="url">{{p.title}}</a></h2>
 <div class="time"><time datetime="{{p.pub_date.isoformat()}}" itemprop="datePublished">{{p.pub_date|time_ago}}</time></div>
 {% if p.excerpt %}<p class="excerpt" itemprop="description">{{p.excerpt}}</p>{% endif %}
-<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</ hallwaysa>
+<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</a>
 </div>
 </article>
 {% endfor %}
