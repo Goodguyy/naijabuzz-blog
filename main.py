@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz 100% AUTOMATIC FOREVER VERSION (2025)
+# main.py - NaijaBuzz 100% AUTOMATIC & FIXED (Deploy & Forget Forever)
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, threading, time
@@ -8,7 +8,7 @@ import re
 
 app = Flask(__name__)
 
-# Database - Render compatible
+# Database - Render.com compatible
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -66,19 +66,19 @@ def extract_best_image(entry):
             return url
     return default
 
-# ——— THIS IS THE MAGIC THAT KEEPS YOUR SITE ALIVE FOREVER ———
-def auto_add_news_forever():
+# MAGIC: Auto-refresh every 12 minutes FOREVER (even on free Render)
+def auto_refresh_forever():
     while True:
-        time.sleep(720)  # every 12 minutes
+        time.sleep(720)  # 12 minutes
         with app.app_context():
-            generate()  # silently adds fresh news in background
+            generate()
 
 @app.before_first_request
-def start_background_job():
-    thread = threading.Thread(target=auto_add_news_forever, daemon=True)
+def start_background():
+    thread = threading.Thread(target=auto_refresh_forever, daemon=True)
     thread.start()
 
-# ——— YOUR /generate (now runs automatically + you can still use it manually) ———
+# Your /generate route (manual or auto)
 @app.route('/generate')
 def generate():
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
@@ -91,7 +91,8 @@ def generate():
             for e in f.entries[:8]:
                 if not hasattr(e, 'link') or e.link in seen: continue
                 image = extract_best_image(e)
-                title = random.choice(prefixes) + " " + BeautifulSoup(e.title, 'html.parser').get_text()
+                raw_title = BeautifulSoup(e.title, 'html.parser').get_text()
+                title = random.choice(prefixes) + " " + raw_title
                 content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                 excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                 pub_date = getattr(e, "published", datetime.utcnow().isoformat())
@@ -100,8 +101,9 @@ def generate():
                 seen.add(e.link)
                 added += 1
         except: continue
-    if added: db.session.commit()
-    return f"Added {added} new stories automatically!"
+    if added:
+        db.session.commit()
+    return f"Added {added} fresh stories! Site is now on autopilot!"
 
 @app.route('/')
 def index():
@@ -112,7 +114,6 @@ def index():
     posts = q.limit(90).all()
     return render_template_string(HTML_TEMPLATE, posts=posts, categories=CATEGORIES, selected=selected)
 
-# ——— (Beautiful design + robots + sitemap stay exactly the same as the version you loved) ———
 HTML_TEMPLATE = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
 <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, Tech & World news - updated every few minutes!">
@@ -161,7 +162,7 @@ footer{text-align:center;padding:3rem;color:#64748b;background:var(--card);margi
 <div class="meta">{{p.category.upper()}}</div>
 <h2><a href="{{p.link}}" target="_blank" rel="noopener">{{p.title}}</a></h2>
 {% if p.excerpt %}<p class="excerpt">{{p.excerpt}}</p>{% endif %}
-<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story →</a>
+<a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</a>
 </div></div>
 {% endfor %}
 </div></div>
@@ -175,7 +176,7 @@ def robots(): return "User-agent: *\nAllow: /\nDisallow: /generate\nSitemap: htt
 def sitemap():
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://blog.naijabuzz.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n'
-    for k in CATEGORIES: 
+    for k in CATEGORIES:
         if k != "all": xml += f'  <url><loc>https://blog.naijabuzz.com/?cat={k}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
