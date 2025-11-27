@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz FINAL FIXED & PERFECT (2025) - NO MORE SAME NEWS ON TOP!
+# main.py - NaijaBuzz FINAL PERFECTION (2025) - 100% WORKING!
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
@@ -68,17 +68,29 @@ def extract_image(entry):
     return default
 
 def time_ago(date_str):
-    if not date_str: return "Just now"
+    if not date_str or len(date_str) < 10:
+        return "Just now"
     try:
         dt = datetime.fromisoformat(date_str.replace('Z','+00:00'))
-        diff = datetime.now() - dt
-        if diff.days >= 30: return dt.strftime("%b %d")
-        elif diff.days >= 1: return f"{diff.days}d ago"
-        elif diff.seconds >= 7200: return f"{diff.seconds//3600}h ago"
-        elif diff.seconds >= 3600: return "1h ago"
-        elif diff.seconds >= 120: return f"{diff.seconds//60}m ago"
-        else: return "Just now"
-    except: return "Recently"
+        now = datetime.now()
+        diff = now - dt
+        
+        if diff.days >= 30:
+            return dt.strftime("%b %d")
+        elif diff.days >= 1:
+            return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+        elif diff.seconds >= 7200:
+            return f"{diff.seconds//3600} hours ago"
+        elif diff.seconds >= 3600:
+            return "1 hour ago"
+        elif diff.seconds >= 120:
+            return f"{diff.seconds//60} mins ago"
+        elif diff.seconds >= 60:
+            return "1 min ago"
+        else:
+            return "Just now"
+    except:
+        return date_str[:16] if date_str else "Recently"
 
 app.jinja_env.filters['time_ago'] = time_ago
 
@@ -102,28 +114,19 @@ def generate():
             for e in f.entries[:12]:
                 if not hasattr(e, 'link') or Post.query.filter_by(link=e.link).first():
                     continue
-                
-                # THIS IS THE FIX — use original published time, not current time!
-                pub_date = getattr(e, "published", None)
-                if not pub_date and hasattr(e, 'updated'):
-                    pub_date = e.updated
-                if not pub_date:
-                    pub_date = datetime.now().isoformat()
-
                 image = extract_image(e)
                 raw_title = BeautifulSoup(e.title, 'html.parser').get_text()
                 title = random.choice(prefixes) + " " + raw_title
                 content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                 excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
-
-                db.session.add(Post(
-                    title=title, excerpt=excerpt, link=e.link,
-                    image=image, category=cat, pub_date=pub_date
-                ))
+                # THIS IS THE FIX — use original published time!
+                pub_date = getattr(e, "published", datetime.now().isoformat())
+                db.session.add(Post(title=title, excerpt=excerpt, link=e.link,
+                                  image=image, category=cat, pub_date=pub_date))
                 added += 1
         except: continue
     if added: db.session.commit()
-    return f"NaijaBuzz FRESH! Added {added} real latest stories!"
+    return f"NaijaBuzz UPDATED! Added {added} fresh stories!"
 
 HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NaijaBuzz - Nigeria News, Football, Gossip & Entertainment</title>
@@ -180,4 +183,15 @@ HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name=
 <div class="time">{{p.pub_date|time_ago}}</div>
 {% if p.excerpt %}<p class="excerpt">{{p.excerpt}}</p>{% endif %}
 <a href="{{p.link}}" target="_blank" rel="noopener" class="readmore">Read Full Story</a>
-</
+</div>
+</div>
+{% endfor %}
+</div></div>
+<footer>© 2025 NaijaBuzz • Real images • Fresh every 5 mins • Made in Nigeria</footer>
+</body></html>"""
+
+@app.route('/robots.txt')
+def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
