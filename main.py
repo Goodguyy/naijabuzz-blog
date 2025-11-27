@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz FINAL 100% WORKING + BEAUTIFUL + REAL IMAGES (2025)
+# main.py - NaijaBuzz FINAL FOREVER (2025) - All News truly mixed + 95% images
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random
@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# Database
 db_uri = os.environ.get('DATABASE_URL')
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -24,7 +23,7 @@ class Post(db.Model):
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(600), unique=True)
     image = db.Column(db.String(800), default="https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz")
-    category = db.Column(db.String(100))
+    category = db.Column(db.String(100))  # lowercase!
     pub_date = db.Column(db.String(100))
 
 with app.app_context():
@@ -36,27 +35,25 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# Your 16 feeds with correct categories
 FEEDS = [
-    ("Naija News", "https://punchng.com/feed/"),
-    ("Naija News", "https://vanguardngr.com/feed"),
-    ("Naija News", "https://premiumtimesng.com/feed"),
-    ("Naija News", "https://thenationonlineng.net/feed/"),
-    ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
-    ("Gossip", "https://bellanaija.com/feed/"),
-    ("Football", "https://www.goal.com/en-ng/feeds/news"),
-    ("Football", "https://allnigeriasoccer.com/feed"),
-    ("Sports", "https://www.completesports.com/feed/"),
-    ("World", "https://bbc.com/news/world/rss.xml"),
-    ("Tech", "https://techcabal.com/feed/"),
-    ("Viral", "https://legit.ng/rss"),
-    ("Entertainment", "https://pulse.ng/rss"),
-    ("Entertainment", "https://notjustok.com/feed/"),
-    ("Lifestyle", "https://sisiyemmie.com/feed"),
-    ("Education", "https://myschoolgist.com/feed"),
+    ("naija news", "https://punchng.com/feed/"),
+    ("naija news", "https://vanguardngr.com/feed"),
+    ("naija news", "https://premiumtimesng.com/feed"),
+    ("naija news", "https://thenationonlineng.net/feed/"),
+    ("gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
+    ("gossip", "https://bellanaija.com/feed/"),
+    ("football", "https://www.goal.com/en-ng/feeds/news"),
+    ("football", "https://allnigeriasoccer.com/feed"),
+    ("sports", "https://www.completesports.com/feed/"),
+    ("world", "https://bbc.com/news/world/rss.xml"),
+    ("tech", "https://techcabal.com/feed/"),
+    ("viral", "https://legit.ng/rss"),
+    ("entertainment", "https://pulse.ng/rss"),
+    ("entertainment", "https://notjustok.com/feed/"),
+    ("lifestyle", "https://sisiyemmie.com/feed"),
+    ("education", "https://myschoolgist.com/feed"),
 ]
 
-# 90-95% REAL IMAGE EXTRACTOR
 def extract_image(entry):
     default = "https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz"
     html = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
@@ -70,21 +67,18 @@ def extract_image(entry):
             return src
     return default
 
-# Time ago filter
 def time_ago(date_str):
     if not date_str: return "Just now"
     try:
         dt = datetime.fromisoformat(date_str.replace('Z','+00:00'))
         diff = datetime.now() - dt
-        if diff.days > 30: return dt.strftime("%b %d")
-        elif diff.days >= 1: return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
-        elif diff.seconds >= 7200: return f"{diff.seconds//3600} hours ago"
-        elif diff.seconds >= 3600: return "1 hour ago"
-        elif diff.seconds >= 120: return f"{diff.seconds//60} mins ago"
-        elif diff.seconds >= 60: return "1 min ago"
+        if diff.days >= 30: return dt.strftime("%b %d")
+        elif diff.days >= 1: return f"{diff.days}d ago"
+        elif diff.seconds >= 7200: return f"{diff.seconds//3600}h ago"
+        elif diff.seconds >= 3600: return "1h ago"
+        elif diff.seconds >= 120: return f"{diff.seconds//60}m ago"
         else: return "Just now"
-    except:
-        return "Recently"
+    except: return "Recently"
 
 app.jinja_env.filters['time_ago'] = time_ago
 
@@ -94,8 +88,7 @@ def index():
     if selected == 'all':
         posts = Post.query.order_by(Post.pub_date.desc()).limit(90).all()
     else:
-        posts = Post.query.filter(Post.category.ilike(f"%{selected}%")).order_by(Post.pub_date.desc()).limit(90).all()
-
+        posts = Post.query.filter(Post.category == selected).order_by(Post.pub_date.desc()).limit(90).all()
     return render_template_string(HTML, posts=posts, categories=CATEGORIES, selected=selected)
 
 @app.route('/generate')
@@ -103,9 +96,9 @@ def generate():
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
     random.shuffle(FEEDS)
-    for cat, url in FEEDS:                    # ← Correct category saved!
+    for cat, url in FEEDS:  # cat is lowercase!
         try:
-            f = feedparser.parse(url)
+            f = feedparser.parse(url, request_headers={'User-Agent': 'NaijaBuzzBot'})
             for e in f.entries[:12]:
                 if not hasattr(e, 'link') or Post.query.filter_by(link=e.link).first():
                     continue
@@ -114,12 +107,14 @@ def generate():
                 content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                 excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                 pub_date = getattr(e, "published", datetime.now().isoformat())
-                db.session.add(Post(title=title, excerpt=excerpt, link=e.link,
-                                  image=img, category=cat, pub_date=pub_date))   # ← cat is correct!
+                db.session.add(Post(
+                    title=title, excerpt=excerpt, link=e.link,
+                    image=img, category=cat, pub_date=pub_date  # lowercase category!
+                ))
                 added += 1
         except: continue
     if added: db.session.commit()
-    return f"NaijaBuzz healthy! Added {added} fresh stories!"
+    return f"NaijaBuzz FRESH! Added {added} stories across all categories!"
 
 HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NaijaBuzz - Nigeria News, Football, Gossip & Entertainment</title>
@@ -180,7 +175,7 @@ HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name=
 </div>
 {% endfor %}
 </div></div>
-<footer>© 2025 NaijaBuzz • Real images • Fresh every 5 mins • Made in Nigeria</footer>
+<footer>© 2025 NaijaBuzz • Always fresh • Real images • Made in Nigeria</footer>
 </body></html>"""
 
 @app.route('/robots.txt')
