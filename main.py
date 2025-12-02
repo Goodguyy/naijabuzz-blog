@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz FINAL 100% WORKING (2025) - FULL & COMPLETE!
+# main.py - FINAL 100% WORKING (2025) - FULLY TESTED!
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -7,7 +7,6 @@ from dateutil import parser as date_parser
 
 app = Flask(__name__)
 
-# Database
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -24,9 +23,10 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
-# CREATE TABLE ON STARTUP
+# CREATE TABLE ON STARTUP — THIS WAS MISSING!
 with app.app_context():
     db.create_all()
+    print("Database table created!")
 
 CATEGORIES = {
     "all": "All News", "naija news": "Naija News", "gossip": "Gossip", "football": "Football",
@@ -60,35 +60,34 @@ def index():
         posts = Post.query.filter(Post.category.ilike(selected)).order_by(Post.pub_date.desc()).limit(90).all()
     return render_template_string(HTML, posts=posts, categories=CATEGORIES, selected=selected)
 
-# THIS IS THE MISSING ROUTE — UPTIMEROBOT NEEDS THIS!
 @app.route('/generate')
 def generate():
     return "NaijaBuzz is ALIVE! generate.py is adding fresh stories every 5 mins.", 200
 
 HTML = '''<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NaijaBuzz - Nigeria News, Football, Gossip & Entertainment</title>
+<title>NaijaBuzz - Nigeria Youth News, BBNaija, Football, Music & Gist</title>
 <link rel="canonical" href="https://blog.naijabuzz.com">
 <style>
-    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--accent:#00d4aa;}
+    :root{--bg:#0a0a0a;--card:#111;--text:#e0e0e0;--accent:#00ff9d;}
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);}
     header{background:var(--card);padding:1.5rem;text-align:center;}
-    h1{font-size:2.4rem;color:var(--accent);font-weight:900;}
+    h1{font-size:2.6rem;background:linear-gradient(90deg,#00ff9d,#00d4aa);-webkit-background-clip:text;color:transparent;font-weight:900;}
     .container{max-width:1400px;margin:2rem auto;padding:0 1rem;}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.8rem;}
-    .card{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,212,170,0.2);transition:0.3s;}
+    .card{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,255,157,0.1);transition:0.3s;}
     .card:hover{transform:translateY(-10px);}
     .card img{width:100%;height:220px;object-fit:cover;}
     .card-content{padding:1.5rem;}
     .card h2{font-size:1.35rem;line-height:1.3;margin:0.8rem 0;}
     .card h2 a{color:var(--text);text-decoration:none;font-weight:700;}
     .card h2 a:hover{color:var(--accent);}
-    .time{font-size:0.8rem;color:#94a3b8;margin:0.5rem 0;}
+    .time{font-size:0.8rem;color:#888;margin:0.5rem 0;}
     .readmore{display:inline-block;margin-top:1rem;padding:10px 22px;background:var(--accent);color:#000;font-weight:bold;border-radius:50px;}
-    .placeholder{height:220px;background:#1e293b;display:flex;align-items:center;justify-content:center;color:#555;}
+    .placeholder{height:220px;background:#111;display:flex;align-items:center;justify-content:center;color:#555;}
 </style></head><body>
-<header><h1>NaijaBuzz</h1><div>Fresh Naija News • Football • Gossip • Entertainment • Updated LIVE</div></header>
+<header><h1>NaijaBuzz</h1><div>Fresh Naija Youth Gist • BBN Football Music Crypto Fashion</div></header>
 <div class="container"><div class="grid">
 {% for p in posts %}
 <div class="card">
@@ -103,7 +102,7 @@ HTML = '''<!DOCTYPE html>
 <h2><a href="{{p.link}}" target="_blank">{{p.title}}</a></h2>
 <div class="time">{{p.pub_date|time_ago}}</div>
 <p>{{p.excerpt}}</p>
-<a href="{{p.link}}" target="_blank" class="readmore">Read Full Story →</a>
+<a href="{{p.link}}" target="_blank" class="readmore">Read Full Gist →</a>
 </div>
 </div>
 {% endfor %}
