@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /generate
+Sitemap: https://blog.naijabuzz.com/sitemap.xml
