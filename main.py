@@ -1,4 +1,4 @@
-# main.py - NaijaBuzz 2025 PRO (Website Only)
+# main.py - NaijaBuzz 2025 FINAL (Website Only)
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -23,18 +23,14 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
+# CREATE TABLE ON STARTUP
+with app.app_context():
+    db.create_all()
+
 CATEGORIES = {
-    "all": "All News",
-    "naija news": "Naija News",
-    "gossip": "Gossip & BBN",
-    "football": "Football",
-    "music": "Afrobeats & Music",
-    "entertainment": "Movies & Celebs",
-    "tech": "Tech & Crypto",
-    "viral": "Viral & Yahoo",
-    "lifestyle": "Fashion & Lifestyle",
-    "campus": "Campus & Education",
-    "world": "World News"
+    "all": "All News", "naija news": "Naija News", "gossip": "Gossip", "football": "Football",
+    "sports": "Sports", "entertainment": "Entertainment", "lifestyle": "Lifestyle",
+    "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
 def time_ago(date_str):
@@ -44,11 +40,11 @@ def time_ago(date_str):
         now = datetime.now()
         diff = now - dt
         if diff.days >= 30: return dt.strftime("%b %d")
-        if diff.days >= 1: return f"{diff.days}d ago"
-        if diff.seconds >= 7200: return f"{diff.seconds//3600}h ago"
-        if diff.seconds >= 3600: return "1h ago"
-        if diff.seconds >= 120: return f"{diff.seconds//60}m ago"
-        return "Just now"
+        elif diff.days >= 1: return f"{diff.days}d ago"
+        elif diff.seconds >= 7200: return f"{diff.seconds//3600}h ago"
+        elif diff.seconds >= 3600: return "1h ago"
+        elif diff.seconds >= 120: return f"{diff.seconds//60}m ago"
+        else: return "Just now"
     except:
         return "Recently"
 
@@ -69,7 +65,7 @@ HTML = '''<!DOCTYPE html>
 <meta name="description" content="Latest Naija youth news, BBNaija, Afrobeats, Premier League, Yahoo gist, Crypto, Fashion, Campus — updated every 5 mins!">
 <link rel="canonical" href="https://blog.naijabuzz.com">
 <style>
-    :root{--bg:#0a0a0a;--card:#111111;--text:#e0e0e0;--accent:#00ff9d;--accent2:#00d4aa;}
+    :root{--bg:#0a0a0a;--card:#111;--text:#e0e0e0;--accent:#00ff9d;--accent2:#00d4aa;}
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;}
     header{background:var(--card);padding:1.5rem;text-align:center;box-shadow:0 4px 20px rgba(0,255,157,0.1);}
@@ -90,11 +86,10 @@ HTML = '''<!DOCTYPE html>
     .card h2 a:hover{color:var(--accent);}
     .meta{font-size:0.85rem;color:var(--accent);font-weight:700;text-transform:uppercase;margin-bottom:0.5rem;}
     .time{font-size:0.8rem;color:#888;margin-bottom:0.8rem;}
-    .readmore{display:inline-block;margin-top:1rem;padding:10px 22px;background:var(--accent);color:#000;font-weight:bold;border-radius:50px;text-decoration:none;transition:0.3s;}
+    .readmore{display:inline-block;margin-top:1rem;padding:10px 22px;background:var(--accent);color:#000;font-weight:bold;border-radius:50px;transition:0.3s;}
     .readmore:hover{background:var(--accent2);transform:scale(1.05);}
     .placeholder{height:220px;background:linear-gradient(45deg,#111,#222);display:flex;align-items:center;justify-content:center;color:#555;}
-    footer{text-align:center;padding:3rem;color:#666;background:var(--card);margin-top:4rem;}
-    @media(max-width:768px){.grid{grid-template-columns:1fr;}}
+    footer{text-align:center;padding:3rem;color:#666;background:var(--card);}
 </style></head><body>
 <header><h1>NaijaBuzz</h1><div class="tagline">No.1 Naija Youth Gist • BBN • Football • Music • Crypto • Fashion</div></header>
 <div class="nav"><div class="nav-inner">
