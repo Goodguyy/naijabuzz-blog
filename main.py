@@ -1,4 +1,4 @@
-# main.py - FINAL 100% WORKING (2025) - FULLY TESTED!
+# main.py - ONLY THE WEBSITE (NO GENERATE ROUTE)
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -23,10 +23,8 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     pub_date = db.Column(db.String(100))
 
-# CREATE TABLE ON STARTUP — THIS WAS MISSING!
 with app.app_context():
     db.create_all()
-    print("Database table created!")
 
 CATEGORIES = {
     "all": "All News", "naija news": "Naija News", "gossip": "Gossip", "football": "Football",
@@ -59,10 +57,6 @@ def index():
     else:
         posts = Post.query.filter(Post.category.ilike(selected)).order_by(Post.pub_date.desc()).limit(90).all()
     return render_template_string(HTML, posts=posts, categories=CATEGORIES, selected=selected)
-
-@app.route('/generate')
-def generate():
-    return "NaijaBuzz is ALIVE! generate.py is adding fresh stories every 5 mins.", 200
 
 HTML = '''<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
