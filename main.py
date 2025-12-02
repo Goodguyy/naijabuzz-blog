@@ -1,7 +1,7 @@
-# main.py - NaijaBuzz FINAL PROFESSIONAL & 100% WORKING (2025)
+# main.py - NaijaBuzz FINAL 100% WORKING (2025) - FULL & COMPLETE!
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
-import os, feedparser, random, requests
+import os, feedparser, random
 from datetime import datetime
 from dateutil import parser as date_parser
 from bs4 import BeautifulSoup
@@ -34,47 +34,32 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# 25+ UNBLOCKABLE SOURCES — GOOGLE NEWS RSS (NEVER BLOCKED!)
+# 20+ UNBLOCKABLE SOURCES — GOOGLE NEWS RSS (NEVER BLOCKED!)
 FEEDS = [
-    # Naija News (10)
     ("naija news", "https://news.google.com/rss/search?q=when:24h+site:punchng.com&hl=en-NG&gl=NG&ceid=NG:en"),
     ("naija news", "https://news.google.com/rss/search?q=when:24h+site:vanguardngr.com&hl=en-NG&gl=NG&ceid=NG:en"),
     ("naija news", "https://news.google.com/rss/search?q=when:24h+site:premiumtimesng.com&hl=en-NG&gl=NG&ceid=NG:en"),
     ("naija news", "https://news.google.com/rss/search?q=when:24h+site:thenationonlineng.net&hl=en-NG&gl=NG&ceid=NG:en"),
     ("naija news", "https://news.google.com/rss/search?q=when:24h+site:dailypost.ng&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:thisdaylive.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:thecable.ng&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:saharareporters.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:guardian.ng&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:tribuneonlineng.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    
-    # Gossip (4)
     ("gossip", "https://news.google.com/rss/search?q=when:24h+site:lindaikejisblog.com&hl=en-NG&gl=NG&ceid=NG:en"),
     ("gossip", "https://news.google.com/rss/search?q=when:24h+site:bellanaija.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("gossip", "https://news.google.com/rss/search?q=when:24h+site:gistlover.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("gossip", "https://news.google.com/rss/search?q=when:24h+bbnaija+OR+celebrity+gist&hl=en-NG&gl=NG&ceid=NG:en"),
-    
-    # Football & Sports (5)
     ("football", "https://news.google.com/rss/search?q=when:24h+super+eagles+OR+premier+league+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("football", "https://news.google.com/rss/search?q=when:24h+site:goal.com+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("sports", "https://news.google.com/rss/search?q=when:24h+afcon+OR+nigeria+sports&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("sports", "https://news.google.com/rss/search?q=when:24h+site:completesports.com&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("sports", "https://news.google.com/rss/search?q=when:24h+olympics+OR+boxing+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
-    
-    # Entertainment & Viral (4)
-    ("entertainment", "https://news.google.com/rss/search?q=when:24h+bbnaija+OR+nollywood&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("entertainment", "https://news.google.com/rss/search?q=when:24h+site:pulse.ng&hl=en-NG&gl=NG&ceid=NG:en"),
     ("viral", "https://news.google.com/rss/search?q=when:24h+site:legit.ng&hl=en-NG&gl=NG&ceid=NG:en"),
-    ("viral", "https://news.google.com/rss/search?q=when:24h+trending+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
-    
-    # Tech & World (2)
+    ("entertainment", "https://news.google.com/rss/search?q=when:24h+bbnaija+OR+nollywood&hl=en-NG&gl=NG&ceid=NG:en"),
     ("tech", "https://news.google.com/rss/search?q=when:24h+site:techcabal.com&hl=en-NG&gl=NG&ceid=NG:en"),
     ("world", "https://feeds.bbci.co.uk/news/world/africa/rss.xml"),
+    ("sports", "https://news.google.com/rss/search?q=when:24h+afcon+OR+nigeria+sports&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("lifestyle", "https://news.google.com/rss/search?q=when:24h+fashion+OR+wedding+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("education", "https://news.google.com/rss/search?q=when:24h+jamb+OR+waec+OR+university+nigeria&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:saharareporters.com&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:thecable.ng&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("naija news", "https://news.google.com/rss/search?q=when:24h+site:thisdaylive.com&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("entertainment", "https://news.google.com/rss/search?q=when:24h+site:pulse.ng&hl=en-NG&gl=NG&ceid=NG:en"),
+    ("sports", "https://news.google.com/rss/search?q=when:24h+site:completesports.com&hl=en-NG&gl=NG&ceid=NG:en"),
 ]
 
 def extract_image(entry):
     default = "https://via.placeholder.com/800x500/0f172a/f8fafc?text=NaijaBuzz"
-    # Google thumbnails
     if hasattr(entry, 'media_content'):
         for m in entry.media_content:
             url = m.get('url')
@@ -213,7 +198,7 @@ def sitemap():
     posts = Post.query.order_by(Post.pub_date.desc()).limit(1000).all()
     for p in posts:
         link = p.link.replace('&', '&amp;')
-        date = p.pub_date[:10] if p.pub_date else datetime.now().strftime("%Y-%m-%d")
+        date = p.pub_date[:10] if p.pub_date and len(p.pub_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
         xml += f'  <url><loc>{link}</loc><lastmod>{date}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
