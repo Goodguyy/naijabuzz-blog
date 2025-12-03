@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import requests
 import hashlib
 import time
-from dateutil import parser as date_parser  # For flexible date parsing
+from dateutil import parser as date_parser
 
 app = Flask(__name__)
 
@@ -32,8 +32,10 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-with app.app_context():
-    db.create_all()
+# Lazy init
+def init_db():
+    with app.app_context():
+        db.create_all()
 
 CATEGORIES = {
     "all": "All News",
@@ -49,9 +51,8 @@ CATEGORIES = {
     "world": "World"
 }
 
-# 40+ Verified Working Feeds (balanced, fast—tested live)
 FEEDS = [
-    # Naija News (12)
+    # Your full 40+ feeds list here (copy from your previous code)
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -64,7 +65,6 @@ FEEDS = [
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
-    # Gossip (7)
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -72,51 +72,51 @@ FEEDS = [
     ("Gossip", "https://www.naijaloaded.com.ng/feed"),
     ("Gossip", "https://www.mcebiscoo.com/feed"),
     ("Gossip", "https://creebhills.com/feed"),
-    # Football (6)
+    ("Gossip", "https://www.informationng.com/feed"),
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
     ("Football", "https://soccernet.ng/rss"),
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
-    # Sports (4)
+    ("Football", "https://sportsration.com/feed/"),
     ("Sports", "https://www.vanguardngr.com/sports/feed"),
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
-    # Entertainment (5)
+    ("Sports", "https://blueprint.ng/sports/feed/"),
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Entertainment", "https://www.nigerianeye.com/feeds/posts/default"),
+    ("Entertainment", "https://www.entertaintment.ng/feed"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
-    # Lifestyle (4)
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
-    # Education (3)
+    ("Lifestyle", "https://www.womenshealthng.com/feed"),
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://www.exammaterials.com.ng/feed"),
     ("Education", "https://edupodia.com/blog/feed"),
-    # Tech (4)
+    ("Education", "https://flashlearners.com/feed/"),
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
     ("Tech", "https://itnewsafrica.com/feed"),
-    # Viral (2)
+    ("Tech", "https://www.nigeriacommunicationsweek.com/feed"),
     ("Viral", "https://www.legit.ng/rss"),
+    ("Viral", "https://www.naij.com/rss"),
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
-    # World (5)
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
+    ("World", "https://www.apnews.com/hub/world-news"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("World", "https://www.theguardian.com/world/rss"),
-    ("World", "https://rss.cnn.com/rss/edition_world.rss"),
 ]
 
 def rate_limit_fetch():
-    time.sleep(0.2)  # Polite delay
+    time.sleep(0.2)
 
 def get_image_from_feed(entry):
     if hasattr(entry, 'enclosures') and entry.enclosures:
@@ -159,6 +159,7 @@ def normalize_date(pub_str):
 
 @app.route('/')
 def index():
+    init_db()
     selected = request.args.get('cat', 'all').lower()
     page = int(request.args.get('page', 1))
     per_page = 20
@@ -288,6 +289,7 @@ def robots():
 
 @app.route('/sitemap.xml')
 def sitemap():
+    init_db()
     base_url = "https://blog.naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -306,31 +308,28 @@ def sitemap():
 @app.route('/generate')
 @app.route('/cron')
 def generate():
+    init_db()
     prefixes = ["Na Wa O!", "Gist Alert:", "You Won't Believe:", "Naija Gist:", "Breaking:", "Omo!", "Chai!", "E Don Happen!"]
     added = 0
     errors = []
     try:
         with app.app_context():
-            # Auto-migration: Recreate table if old schema (checks for unique_hash)
+            # Auto-reset old schema (one-time)
             try:
-                # Test new column
                 Post.query.filter(Post.unique_hash.is_(None)).first()
-            except Exception as schema_err:
-                if 'unique_hash' in str(schema_err) or 'pub_date' in str(schema_err) or 'no such column' in str(schema_err).lower():
-                    errors.append("Auto-migrating schema: Dropping old table")
-                    db.drop_all()
-                    db.create_all()
-                    db.session.commit()
-                else:
-                    raise schema_err
+            except:
+                errors.append("Resetting old DB schema")
+                db.drop_all()
+                db.create_all()
+                db.session.commit()
 
-            # Cleanup old posts
+            # Cleanup (safe fallback)
             try:
                 old_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
                 deleted = Post.query.filter(Post.pub_date < old_cutoff).delete()
                 db.session.commit()
                 if deleted > 0:
-                    errors.append(f"Cleaned {deleted} old posts")
+                    errors.append(f"Cleaned {deleted} posts")
             except Exception as cleanup_err:
                 db.session.rollback()
                 errors.append(f"Cleanup skipped: {str(cleanup_err)}")
@@ -346,22 +345,11 @@ def generate():
                         if Post.query.filter_by(unique_hash=link_hash).first():
                             continue
                         img = get_image_from_feed(e) or "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
-                        # Validate image
-                        if img.startswith('http') and 'placeholder' not in img:
-                            try:
-                                resp = requests.head(img, timeout=5)
-                                if not (resp.status_code == 200 and resp.headers.get('content-type', '').startswith('image/')):
-                                    img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
-                            except:
-                                img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
                         content = getattr(e, "summary", "") or getattr(e, "description", "") or ""
                         title = random.choice(prefixes) + " " + getattr(e, "title", "Untitled")
                         excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                         pub_date = normalize_date(getattr(e, "published", None))
-                        new_post = Post(
-                            title=title, excerpt=excerpt, link=getattr(e, 'link', ''),
-                            unique_hash=link_hash, image=img, category=cat, pub_date=pub_date
-                        )
+                        new_post = Post(title=title, excerpt=excerpt, link=getattr(e, 'link', ''), unique_hash=link_hash, image=img, category=cat, pub_date=pub_date)
                         db.session.add(new_post)
                         added += 1
                     db.session.commit()
@@ -369,7 +357,7 @@ def generate():
                     errors.append(f"Feed {url}: {str(feed_ex)}")
                     continue
     except Exception as main_ex:
-        print(f"CRON ERROR: {main_ex}")  # Log to Render console
+        print(f"CRON ERROR: {main_ex}")
         return jsonify({"error": "Cron failed", "details": str(main_ex)}), 500
 
     msg = f"NaijaBuzz healthy! Added {added} fresh stories from {len(FEEDS)} sources!"
