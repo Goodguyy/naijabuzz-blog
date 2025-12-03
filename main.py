@@ -32,7 +32,6 @@ class Post(db.Model):
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-# Lazy init
 def init_db():
     with app.app_context():
         db.create_all()
@@ -52,7 +51,7 @@ CATEGORIES = {
 }
 
 FEEDS = [
-    # Your full 40+ feeds list here (copy from your previous code)
+    # Naija News (12)
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -65,6 +64,7 @@ FEEDS = [
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
+    # Gossip (8)
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -73,6 +73,7 @@ FEEDS = [
     ("Gossip", "https://www.mcebiscoo.com/feed"),
     ("Gossip", "https://creebhills.com/feed"),
     ("Gossip", "https://www.informationng.com/feed"),
+    # Football (7)
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
@@ -80,34 +81,41 @@ FEEDS = [
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
     ("Football", "https://sportsration.com/feed/"),
+    # Sports (5)
     ("Sports", "https://www.vanguardngr.com/sports/feed"),
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
     ("Sports", "https://blueprint.ng/sports/feed/"),
+    # Entertainment (6)
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Entertainment", "https://www.nigerianeye.com/feeds/posts/default"),
     ("Entertainment", "https://www.entertaintment.ng/feed"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
+    # Lifestyle (5)
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
     ("Lifestyle", "https://www.womenshealthng.com/feed"),
+    # Education (4)
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://www.exammaterials.com.ng/feed"),
     ("Education", "https://edupodia.com/blog/feed"),
     ("Education", "https://flashlearners.com/feed/"),
+    # Tech (5)
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
     ("Tech", "https://itnewsafrica.com/feed"),
     ("Tech", "https://www.nigeriacommunicationsweek.com/feed"),
+    # Viral (3)
     ("Viral", "https://www.legit.ng/rss"),
     ("Viral", "https://www.naij.com/rss"),
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
+    # World (5)
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
     ("World", "https://www.apnews.com/hub/world-news"),
