@@ -1,9 +1,8 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib, time
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
-import requests
 from dateutil import parser as date_parser
 
 app = Flask(__name__)
@@ -36,18 +35,15 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# 30+ FAST, RELIABLE SOURCES WITH REAL IMAGES (tested Dec 2025)
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://guardian.ng/feed/"),
-    ("Naija News", "https://tribuneonlineng.com/feed"),
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
-    ("Gossip", "https://www.gistlover.com/feed"),
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://soccernet.ng/rss"),
     ("Football", "https://www.pulsesports.ng/rss"),
@@ -57,21 +53,16 @@ FEEDS = [
     ("Viral", "https://www.legit.ng/rss"),
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
-    ("World", "https://rss.cnn.com/rss/edition_world.rss"),
     ("Tech", "https://techcabal.com/feed/"),
-    ("Tech", "https://technext.ng/feed"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Sports", "https://punchng.com/sports/feed/"),
-    ("Sports", "https://www.completesports.com/feed/"),
 ]
 
 def get_image(entry):
-    # 1. Enclosure (most reliable)
     if hasattr(entry, 'enclosures'):
         for e in entry.enclosures:
             if 'image' in str(e.type or '').lower():
                 return e.href
-    # 2. Summary/description image
     content = entry.get('summary') or entry.get('description') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
@@ -79,29 +70,40 @@ def get_image(entry):
         if img and img.get('src'):
             url = img['src']
             if url.startswith('//'): url = 'https:' + url
-            if url.startswith('http'): return url
+            return url if url.startswith('http') else None
     return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
-    try: return date_parser.parse(d).astimezone(timezone.utc)
+    try:
+        dt = date_parser.parse(d)
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except: return datetime.now(timezone.utc)
 
 @app.route('/')
 def index():
     init_db()
-    cat = request.args.get('cat', 'all').lower()
+    selected = request.args.get('cat', 'all').lower()
     page = max(1, int(request.args.get('page', 1)))
-    per_page = 24
+    per_page = 20
     q = Post.query.order_by(Post.pub_date.desc())
-    if cat != 'all': q = q.filter(Post.category.ilike(f"%{cat}%"))
+    if selected != 'all':
+        q = q.filter(Post.category.ilike(f"%{selected}%"))
     posts = q.offset((page-1)*per_page).limit(per_page).all()
     total_pages = (q.count() + per_page - 1) // per_page
 
     def ago(dt):
-        diff = datetime.now(timezone.utc) - dt
-        if diff < timedelta(hours=1): return f"{int(diff.total_seconds()//60)}m ago"
-        if diff < timedelta(days=1): return f"{int(diff.total_seconds()//3600)}h ago"
+        if dt is None:
+            return "Just now"
+        # Make both timezone-aware
+        now = datetime.now(timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        diff = now - dt
+        if diff < timedelta(hours=1):
+            return f"{int(diff.total_seconds()//60)}m ago"
+        if diff < timedelta(days=1):
+            return f"{int(diff.total_seconds()//3600)}h ago"
         return dt.strftime("%b %d, %I:%M%p")
 
     html = """
@@ -117,7 +119,7 @@ def index():
         <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
         <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
         <meta property="og:url" content="https://blog.naijabuzz.com">
-        <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com">
+        <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz">
         <style>
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;}
             header{background:#1e1e1e;color:white;text-align:center;padding:20px;position:sticky;top:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
@@ -177,7 +179,7 @@ def index():
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ p.category }} • {{ ago(p.pub_date) }}</div>
                         <p>{{ p.excerpt|safe }}</p>
-                        <a href="{{ p.link }}" target="_blank" class="readmore">Read Full Story →</a>
+                        <a href="{{ p.link }}" target="_blank" class="readmore">Read Full Story</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -200,7 +202,7 @@ def index():
     </body>
     </html>
     """
-    return render_template_string(html, posts=posts, categories=CATEGORIES, selected=cat,
+    return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
                                   ago=ago, page=page, pages=total_pages)
 
 @app.route('/cron')
@@ -212,12 +214,11 @@ def cron():
         with app.app_context():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
-
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:18]:
+            for cat, url in FEEDS[:15]:
                 try:
                     f = feedparser.parse(url)
-                    for e in f.entries[:5]:
+                    for e in f.entries[:4]:
                         h = hashlib.md5((e.link + e.title).encode()).hexdigest()
                         if Post.query.filter_by(unique_hash=h).first(): continue
                         img = get_image(e)
@@ -241,10 +242,10 @@ def sitemap():
     init_db()
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://blog.naijabuzz.com</loc><changefreq>hourly</changefreq></url>\n'
-    posts = Post.query.order_by(Post.pub_date.desc()).limit(1000).all()
+    posts = Post.query.order_by(Post.pub_date.desc()).limit(500).all()
     for p in posts:
         safe = p.link.replace('&','&amp;')
-        date = p.pub_date.strftime("%Y-%m-%d")
+        date = p.pub_date.strftime("%Y-%m-%d") if p.pub_date else datetime.now().strftime("%Y-%m-%d")
         xml += f'  <url><loc>{safe}</loc><lastmod>{date}</lastmod></url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type':'application/xml'}
