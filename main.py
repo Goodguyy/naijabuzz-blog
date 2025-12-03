@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import requests
 import hashlib
 import time
-from dateutil import parser as date_parser  # For robust date parsing
+from dateutil import parser as date_parser  # For flexible date parsing
 
 app = Flask(__name__)
 
@@ -49,7 +49,7 @@ CATEGORIES = {
     "world": "World"
 }
 
-# 40+ Verified Working RSS Feeds (tested Dec 2025 - balanced, fast)
+# 40+ Verified Working Feeds (balanced, fast—tested live)
 FEEDS = [
     # Naija News (12)
     ("Naija News", "https://punchng.com/feed/"),
@@ -116,15 +116,13 @@ FEEDS = [
 ]
 
 def rate_limit_fetch():
-    time.sleep(0.2)  # Simple delay
+    time.sleep(0.2)  # Polite delay
 
 def get_image_from_feed(entry):
-    # Priority 1: Enclosures
     if hasattr(entry, 'enclosures') and entry.enclosures:
         for enc in entry.enclosures:
             if 'image' in str(enc.type).lower() and enc.get('href'):
                 return enc.href
-    # Priority 2: Summary
     content = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
     if content:
         soup = BeautifulSoup(content, 'html.parser')
@@ -134,7 +132,6 @@ def get_image_from_feed(entry):
             if img_url.startswith('//'): img_url = 'https:' + img_url
             if img_url.startswith('http'):
                 return img_url
-    # Priority 3: og:image (rate-limited)
     rate_limit_fetch()
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (compatible; NaijaBuzzBot/1.0)'}
@@ -314,13 +311,13 @@ def generate():
     errors = []
     try:
         with app.app_context():
-            # One-time migration: Drop & recreate if schema mismatch (checks for unique_hash column)
+            # Auto-migration: Recreate table if old schema (checks for unique_hash)
             try:
-                # Test query for new column
+                # Test new column
                 Post.query.filter(Post.unique_hash.is_(None)).first()
             except Exception as schema_err:
-                if 'unique_hash' in str(schema_err) or 'pub_date' in str(schema_err):
-                    errors.append("Schema migration: Dropping old table")
+                if 'unique_hash' in str(schema_err) or 'pub_date' in str(schema_err) or 'no such column' in str(schema_err).lower():
+                    errors.append("Auto-migrating schema: Dropping old table")
                     db.drop_all()
                     db.create_all()
                     db.session.commit()
@@ -332,23 +329,24 @@ def generate():
                 old_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
                 deleted = Post.query.filter(Post.pub_date < old_cutoff).delete()
                 db.session.commit()
-                errors.append(f"Cleaned {deleted} old posts")
+                if deleted > 0:
+                    errors.append(f"Cleaned {deleted} old posts")
             except Exception as cleanup_err:
                 db.session.rollback()
                 errors.append(f"Cleanup skipped: {str(cleanup_err)}")
 
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:25]:  # Limit for speed
+            for cat, url in FEEDS[:25]:
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
                         continue
-                    for e in f.entries[:6]:
+                    for e in f.entries[:5]:
                         link_hash = hashlib.md5((getattr(e, 'link', '') + getattr(e, 'title', '')).encode()).hexdigest()
                         if Post.query.filter_by(unique_hash=link_hash).first():
                             continue
                         img = get_image_from_feed(e) or "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz.com%0ANo+Image+Available"
-                        # Quick validation
+                        # Validate image
                         if img.startswith('http') and 'placeholder' not in img:
                             try:
                                 resp = requests.head(img, timeout=5)
@@ -360,7 +358,10 @@ def generate():
                         title = random.choice(prefixes) + " " + getattr(e, "title", "Untitled")
                         excerpt = BeautifulSoup(content, 'html.parser').get_text()[:340] + "..."
                         pub_date = normalize_date(getattr(e, "published", None))
-                        new_post = Post(title=title, excerpt=excerpt, link=getattr(e, 'link', ''), unique_hash=link_hash, image=img, category=cat, pub_date=pub_date)
+                        new_post = Post(
+                            title=title, excerpt=excerpt, link=getattr(e, 'link', ''),
+                            unique_hash=link_hash, image=img, category=cat, pub_date=pub_date
+                        )
                         db.session.add(new_post)
                         added += 1
                     db.session.commit()
@@ -368,6 +369,7 @@ def generate():
                     errors.append(f"Feed {url}: {str(feed_ex)}")
                     continue
     except Exception as main_ex:
+        print(f"CRON ERROR: {main_ex}")  # Log to Render console
         return jsonify({"error": "Cron failed", "details": str(main_ex)}), 500
 
     msg = f"NaijaBuzz healthy! Added {added} fresh stories from {len(FEEDS)} sources!"
