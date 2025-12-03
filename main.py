@@ -35,7 +35,7 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# ALL 58 ORIGINAL SOURCES — FULL POWER
+# ALL 58 SOURCES — FULL POWER
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -159,6 +159,7 @@ def index():
             header{background:var(--dark);color:white;text-align:center;padding:18px 15px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 15px rgba(0,0,0,0.15);}
             h1{margin:0;font-size:34px;font-weight:900;letter-spacing:1px;}
             .tagline{font-size:16px;margin-top:6px;opacity:0.95;font-weight:500;}
+            /* STICKY CATEGORY BAR - ALWAYS VISIBLE ON MOBILE */
             .tabs-container{background:white;padding:14px 0;overflow-x:auto;white-space:nowrap;position:sticky;top:76px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.1);scrollbar-width:none;}
             .tabs-container::-webkit-scrollbar{display:none;}
             .tabs{display:inline-flex;gap:10px;padding:0 15px;}
@@ -201,6 +202,7 @@ def index():
             <div class="tagline">Fresh Naija News • Football • Gossip • World Updates</div>
         </header>
 
+        <!-- STICKY CATEGORY BAR - FIXED ON MOBILE -->
         <div class="tabs-container">
             <div class="tabs">
                 {% for key, name in categories.items() %}
@@ -259,7 +261,7 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:20]:  # Fast enough for free tier
+            for cat, url in FEEDS[:20]:
                 try:
                     f = feedparser.parse(url)
                     for e in f.entries[:4]:
