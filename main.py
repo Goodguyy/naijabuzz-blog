@@ -35,48 +35,75 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# 40+ FAST & HIGH-IMAGE SOURCES (99% image success)
+# ALL 58 ORIGINAL SOURCES — FULL POWER
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
-    ("Naija News", "https://dailypost.ng/feed/"),
+    ("Naija News", "https://thenationonlineng.net/feed/"),
+    ("Naija News", "https://saharareporters.com/feeds/articles/feed"),
+    ("Naija News", "https://www.thisdaylive.com/feed/"),
     ("Naija News", "https://guardian.ng/feed/"),
-    ("Naija News", "https://tribuneonlineng.com/feed"),
     ("Naija News", "https://www.channelstv.com/feed"),
+    ("Naija News", "https://tribuneonlineng.com/feed"),
+    ("Naija News", "https://dailypost.ng/feed/"),
+    ("Naija News", "https://blueprint.ng/feed/"),
+    ("Naija News", "https://newtelegraphng.com/feed"),
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
     ("Gossip", "https://www.gistlover.com/feed"),
     ("Gossip", "https://www.naijaloaded.com.ng/feed"),
+    ("Gossip", "https://www.mcebiscoo.com/feed"),
+    ("Gossip", "https://creebhills.com/feed"),
+    ("Gossip", "https://www.informationng.com/feed"),
     ("Football", "https://www.goal.com/en-ng/rss"),
+    ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
+    ("Football", "https://www.owngoalnigeria.com/rss"),
     ("Football", "https://soccernet.ng/rss"),
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
+    ("Football", "https://sportsration.com/feed/"),
+    ("Sports", "https://www.vanguardngr.com/sports/feed"),
+    ("Sports", "https://punchng.com/sports/feed/"),
+    ("Sports", "https://www.premiumtimesng.com/sports/feed"),
+    ("Sports", "https://tribuneonlineng.com/sports/feed"),
+    ("Sports", "https://blueprint.ng/sports/feed/"),
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
+    ("Entertainment", "https://www.nigerianeye.com/feeds/posts/default"),
+    ("Entertainment", "https://www.entertaintment.ng/feed"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
-    ("Viral", "https://www.legit.ng/rss"),
-    ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
-    ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
-    ("World", "https://www.theguardian.com/world/rss"),
+    ("Lifestyle", "https://www.sisiyemmie.com/feed"),
+    ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
+    ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
+    ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
+    ("Lifestyle", "https://www.womenshealthng.com/feed"),
+    ("Education", "https://myschoolgist.com/feed"),
+    ("Education", "https://www.exammaterials.com.ng/feed"),
+    ("Education", "https://edupodia.com/blog/feed"),
+    ("Education", "https://flashlearners.com/feed/"),
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
-    ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
-    ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
-    ("Sports", "https://punchng.com/sports/feed/"),
-    ("Sports", "https://www.vanguardngr.com/sports/feed"),
+    ("Tech", "https://itnewsafrica.com/feed"),
+    ("Tech", "https://www.nigeriacommunicationsweek.com/feed"),
+    ("Viral", "https://www.legit.ng/rss"),
+    ("Viral", "https://www.naij.com/rss"),
+    ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
+    ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
+    ("World", "http://feeds.reuters.com/Reuters/worldNews"),
+    ("World", "https://www.apnews.com/hub/world-news"),
+    ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
+    ("World", "https://www.theguardian.com/world/rss"),
 ]
 
 def get_image(entry):
-    # 1. Enclosure (most reliable)
     if hasattr(entry, 'enclosures'):
         for e in entry.enclosures:
             if 'image' in str(e.type or '').lower():
                 return e.href
-    # 2. Summary image (fast & 80% success)
     content = entry.get('summary') or entry.get('description') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
@@ -84,8 +111,7 @@ def get_image(entry):
         if img and img.get('src'):
             url = img['src']
             if url.startswith('//'): url = 'https:' + url
-            if url.startswith('http'): return url
-    # 3. Fallback placeholder
+            return url if url.startswith('http') else None
     return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
 
 def parse_date(d):
@@ -121,57 +147,51 @@ def index():
         <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
-        <meta name="keywords" content="Naija news, Nigeria gossip, football, BBNaija, AFCON, tech, crypto, world news">
         <meta name="robots" content="index, follow">
         <link rel="canonical" href="https://blog.naijabuzz.com">
         <meta property="og:title" content="NaijaBuzz - Hottest Naija & World Gist">
         <meta property="og:description" content="Nigeria's #1 source for fresh news, football, gossip & global updates">
         <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz">
-        <meta property="og:type" content="website">
-        <meta name="twitter:card" content="summary_large_image">
         <style>
-            :root{--primary:#00d4aa;--dark:#1e1e1e;--light:#f8f9fa;}
-            *{box-sizing:border-box;}
-            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;color:#222;line-height:1.6;}
-            header{background:var(--dark);color:white;text-align:center;padding:16px;position:fixed;top:0;left:0;right:0;z-index:1100;box-shadow:0 4px 15px rgba(0,0,0,0.2);}
-            h1{margin:0;font-size:30px;font-weight:900;letter-spacing:1px;}
-            .tagline{font-size:15px;margin-top:4px;opacity:0.9;}
-            .tabs-container{background:white;padding:12px 0;overflow-x:auto;position:fixed;top:64px;left:0;right:0;z-index:1099;box-shadow:0 4px 12px rgba(0,0,0,0.1);-webkit-overflow-scrolling:touch;}
+            :root{--primary:#00d4aa;--dark:#1e1e1e;--light:#f8f9fa;--gray:#666;}
+            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;color:#222;}
+            header{background:var(--dark);color:white;text-align:center;padding:18px 15px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 15px rgba(0,0,0,0.15);}
+            h1{margin:0;font-size:34px;font-weight:900;letter-spacing:1px;}
+            .tagline{font-size:16px;margin-top:6px;opacity:0.95;font-weight:500;}
+            .tabs-container{background:white;padding:14px 0;overflow-x:auto;white-space:nowrap;position:sticky;top:76px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.1);scrollbar-width:none;}
             .tabs-container::-webkit-scrollbar{display:none;}
             .tabs{display:inline-flex;gap:10px;padding:0 15px;}
-            .tab{padding:10px 20px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:13.5px;text-decoration:none;transition:all 0.3s;}
-            .tab:hover{background:var(--primary);}
-            .tab.active{background:var(--primary);box-shadow:0 5px 15px rgba(0,212,170,0.4);}
-            .content-area{padding-top:130px;}
-            .grid{max-width:1400px;margin:0 auto;padding:0 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:26px;}
-            .card{background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:all 0.4s;}
-            .card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,0.18);}
+            .tab{padding:11px 22px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;transition:all 0.3s;box-shadow:0 3px 8px rgba(0,0,0,0.15);}
+            .tab:hover{background:var(--primary);transform:translateY(-2px);box-shadow:0 6px 15px rgba(0,212,170,0.3);}
+            .tab.active{background:var(--primary);box-shadow:0 6px 20px rgba(0,212,170,0.4);}
+            .container{max-width:1400px;margin:30px auto;padding:0 15px;}
+            .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
+            .card{background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:all 0.4s;}
+            .card:hover{transform:translateY(-15px);box-shadow:0 25px 50px rgba(0,0,0,0.22);}
             .img-container{position:relative;height:220px;background:#1e1e1e;overflow:hidden;}
             .card img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
             .card:hover img{transform:scale(1.08);}
             .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;z-index:1;}
             .no-image .placeholder-text{display:block;}
-            .content{padding:22px;}
-            .card h2{font-size:19.5px;line-height:1.35;margin:0 0 10px;font-weight:800;}
+            .content{padding:24px;}
+            .card h2{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:800;}
             .card h2 a{color:#1a1a1a;text-decoration:none;transition:color 0.3s;}
             .card h2 a:hover{color:var(--primary);}
-            .meta{font-size:13px;color:var(--primary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
-            .card p{color:#444;font-size:15.5px;line-height:1.65;margin:0 0 16px;}
-            .readmore{background:var(--primary);color:white;padding:11px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;}
-            .readmore:hover{background:#00b894;transform:translateY(-2px);}
-            .pagination{display:flex;justify-content:center;gap:10px;margin:40px 0;}
-            .page-link{padding:11px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;}
+            .meta{font-size:13.5px;color:var(--primary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
+            .card p{color:#444;font-size:15.8px;line-height:1.65;margin:0 0 16px;}
+            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;box-shadow:0 4px 15px rgba(0,212,170,0.3);}
+            .readmore:hover{background:#00b894;transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,212,170,0.4);}
+            .pagination{display:flex;justify-content:center;gap:12px;margin:40px 0;}
+            .page-link{padding:12px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;transition:all 0.3s;}
             .page-link:hover{background:var(--primary);}
-            .page-link.active{background:var(--primary);}
-            footer{text-align:center;padding:60px 20px;background:white;color:#666;font-size:15px;border-top:1px solid #eee;}
+            .page-link.active{background:var(--primary);box-shadow:0 5px 15px rgba(0,212,170,0.4);}
+            footer{text-align:center;padding:60px 20px;background:white;color:var(--gray);font-size:15px;border-top:1px solid #eee;}
             @media(max-width:768px){
-                header{padding:14px 10px;}
-                h1{font-size:26px;}
-                .tabs-container{top:60px;}
-                .content-area{padding-top:125px;}
                 .grid{grid-template-columns:1fr;gap:22px;}
-                .tab{font-size:13px;padding:9px 16px;}
+                .tab{padding:10px 18px;font-size:13px;}
+                header{padding:16px 10px;}
+                h1{font-size:28px;}
             }
         </style>
     </head>
@@ -181,7 +201,6 @@ def index():
             <div class="tagline">Fresh Naija News • Football • Gossip • World Updates</div>
         </header>
 
-        <!-- STICKY CATEGORY BAR - NEVER HIDDEN ON MOBILE -->
         <div class="tabs-container">
             <div class="tabs">
                 {% for key, name in categories.items() %}
@@ -190,7 +209,7 @@ def index():
             </div>
         </div>
 
-        <div class="content-area">
+        <div class="container">
             <div class="grid">
                 {% if posts %}
                     {% for p in posts %}
@@ -240,7 +259,7 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:18]:
+            for cat, url in FEEDS[:20]:  # Fast enough for free tier
                 try:
                     f = feedparser.parse(url)
                     for e in f.entries[:4]:
