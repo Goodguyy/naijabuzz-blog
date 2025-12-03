@@ -35,7 +35,7 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# ALL 58 SOURCES — FULL POWER
+# ALL 58 SOURCES
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -94,7 +94,6 @@ FEEDS = [
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
-    ("World", "https://www.apnews.com/hub/world-news"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("World", "https://www.theguardian.com/world/rss"),
 ]
@@ -154,45 +153,46 @@ def index():
         <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:image" content="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz">
         <style>
-            :root{--primary:#00d4aa;--dark:#1e1e1e;--light:#f8f9fa;--gray:#666;}
+            :root{--primary:#00d4aa;--dark:#1e1e1e;}
             body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;color:#222;}
-            header{background:var(--dark);color:white;text-align:center;padding:18px 15px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 15px rgba(0,0,0,0.15);}
-            h1{margin:0;font-size:34px;font-weight:900;letter-spacing:1px;}
-            .tagline{font-size:16px;margin-top:6px;opacity:0.95;font-weight:500;}
-            /* STICKY CATEGORY BAR - ALWAYS VISIBLE ON MOBILE */
-            .tabs-container{background:white;padding:14px 0;overflow-x:auto;white-space:nowrap;position:sticky;top:76px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.1);scrollbar-width:none;}
+            header{background:var(--dark);color:white;text-align:center;padding:18px 15px;position:fixed;top:0;left:0;right:0;z-index:1100;box-shadow:0 4px 15px rgba(0,0,0,0.2);}
+            h1{margin:0;font-size:32px;font-weight:900;letter-spacing:1px;}
+            .tagline{font-size:16px;margin-top:6px;opacity:0.95;}
+            /* STICKY CATEGORY BAR — NEVER HIDDEN ON MOBILE */
+            .tabs-container{background:white;padding:12px 0;overflow-x:auto;position:fixed;top:70px;left:0;right:0;z-index:1099;box-shadow:0 4px 12px rgba(0,0,0,0.1);-webkit-overflow-scrolling:touch;}
             .tabs-container::-webkit-scrollbar{display:none;}
             .tabs{display:inline-flex;gap:10px;padding:0 15px;}
-            .tab{padding:11px 22px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;transition:all 0.3s;box-shadow:0 3px 8px rgba(0,0,0,0.15);}
-            .tab:hover{background:var(--primary);transform:translateY(-2px);box-shadow:0 6px 15px rgba(0,212,170,0.3);}
-            .tab.active{background:var(--primary);box-shadow:0 6px 20px rgba(0,212,170,0.4);}
-            .container{max-width:1400px;margin:30px auto;padding:0 15px;}
-            .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
+            .tab{padding:10px 20px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;transition:all 0.3s;}
+            .tab:hover{background:var(--primary);}
+            .tab.active{background:var(--primary);box-shadow:0 5px 15px rgba(0,212,170,0.4);}
+            .content-area{padding-top:140px;}
+            .grid{max-width:1400px;margin:0 auto;padding:0 15px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
             .card{background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:all 0.4s;}
-            .card:hover{transform:translateY(-15px);box-shadow:0 25px 50px rgba(0,0,0,0.22);}
+            .card:hover{transform:translateY(-12px);box-shadow:0 25px 50px rgba(0,0,0,0.22);}
             .img-container{position:relative;height:220px;background:#1e1e1e;overflow:hidden;}
             .card img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
             .card:hover img{transform:scale(1.08);}
-            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;z-index:1;}
+            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;}
             .no-image .placeholder-text{display:block;}
             .content{padding:24px;}
             .card h2{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:800;}
-            .card h2 a{color:#1a1a1a;text-decoration:none;transition:color 0.3s;}
+            .card h2 a{color:#1a1a1a;text-decoration:none;}
             .card h2 a:hover{color:var(--primary);}
             .meta{font-size:13.5px;color:var(--primary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
             .card p{color:#444;font-size:15.8px;line-height:1.65;margin:0 0 16px;}
-            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;box-shadow:0 4px 15px rgba(0,212,170,0.3);}
-            .readmore:hover{background:#00b894;transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,212,170,0.4);}
+            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;}
+            .readmore:hover{background:#00b894;transform:translateY(-2px);}
             .pagination{display:flex;justify-content:center;gap:12px;margin:40px 0;}
-            .page-link{padding:12px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;transition:all 0.3s;}
+            .page-link{padding:12px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;}
             .page-link:hover{background:var(--primary);}
-            .page-link.active{background:var(--primary);box-shadow:0 5px 15px rgba(0,212,170,0.4);}
-            footer{text-align:center;padding:60px 20px;background:white;color:var(--gray);font-size:15px;border-top:1px solid #eee;}
+            .page-link.active{background:var(--primary);}
+            footer{text-align:center;padding:60px 20px;background:white;color:#666;font-size:15px;border-top:1px solid #eee;}
             @media(max-width:768px){
-                .grid{grid-template-columns:1fr;gap:22px;}
-                .tab{padding:10px 18px;font-size:13px;}
                 header{padding:16px 10px;}
                 h1{font-size:28px;}
+                .tabs-container{top:66px;}
+                .content-area{padding-top:130px;}
+                .grid{grid-template-columns:1fr;gap:22px;}
             }
         </style>
     </head>
@@ -202,7 +202,7 @@ def index():
             <div class="tagline">Fresh Naija News • Football • Gossip • World Updates</div>
         </header>
 
-        <!-- STICKY CATEGORY BAR - FIXED ON MOBILE -->
+        <!-- STICKY CATEGORY BAR — FIXED ON MOBILE -->
         <div class="tabs-container">
             <div class="tabs">
                 {% for key, name in categories.items() %}
@@ -211,7 +211,7 @@ def index():
             </div>
         </div>
 
-        <div class="container">
+        <div class="content-area">
             <div class="grid">
                 {% if posts %}
                     {% for p in posts %}
