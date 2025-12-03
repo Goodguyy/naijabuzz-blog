@@ -35,6 +35,7 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
+# ALL 58 SOURCES — FULL POWER
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -247,6 +248,11 @@ def index():
     """
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
                                   ago=ago, page=page, total_pages=total_pages)
+
+# LIGHTWEIGHT KEEP-ALIVE ENDPOINT — PREVENTS SLEEPING
+@app.route('/ping')
+def ping():
+    return "OK", 200
 
 @app.route('/cron')
 @app.route('/generate')
