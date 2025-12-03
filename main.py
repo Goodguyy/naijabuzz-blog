@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, jsonify
+from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib, time
 from datetime import datetime, timedelta, timezone
@@ -40,22 +40,17 @@ FEEDS = [
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
     ("Naija News", "https://dailypost.ng/feed/"),
-    ("Naija News", "https://guardian.ng/feed/"),
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
-    ("Gossip", "https://www.kemifilani.ng/feed"),
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://soccernet.ng/rss"),
-    ("Football", "https://www.pulsesports.ng/rss"),
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
-    ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Viral", "https://www.legit.ng/rss"),
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("Tech", "https://techcabal.com/feed/"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
-    ("Sports", "https://punchng.com/sports/feed/"),
 ]
 
 def get_image(entry):
@@ -75,9 +70,7 @@ def get_image(entry):
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
-    try:
-        dt = date_parser.parse(d)
-        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
 @app.route('/')
@@ -90,16 +83,14 @@ def index():
     if selected != 'all':
         q = q.filter(Post.category.ilike(f"%{selected}%"))
     posts = q.offset((page-1)*per_page).limit(per_page).all()
-    total_pages = (q.count() + per_page - 1) // per_page
+    total_posts = q.count()
+    total_pages = (total_posts + per_page - 1) // per_page
 
     def ago(dt):
-        if dt is None:
-            return "Just now"
-        # Make both timezone-aware
-        now = datetime.now(timezone.utc)
+        if not dt: return "Just now"
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        diff = now - dt
+        diff = datetime.now(timezone.utc) - dt
         if diff < timedelta(hours=1):
             return f"{int(diff.total_seconds()//60)}m ago"
         if diff < timedelta(days=1):
@@ -203,7 +194,7 @@ def index():
     </html>
     """
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
-                                  ago=ago, page=page, pages=total_pages)
+                                  ago=ago, page=page, total_pages=total_pages)
 
 @app.route('/cron')
 @app.route('/generate')
