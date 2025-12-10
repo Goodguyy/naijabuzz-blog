@@ -7,6 +7,7 @@ from dateutil import parser as date_parser
 
 app = Flask(__name__)
 
+# Database
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -28,7 +29,7 @@ def init_db():
     with app.app_context():
         db.create_all()
 
-# YOUR FULL 62 SOURCES — NOTHING REMOVED
+# YOUR FULL 62 RSS SOURCES — ALL KEPT
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -74,13 +75,13 @@ FEEDS = [
 CATEGORIES = {
     "all": "All News",
     "naija news": "Naija News",
-    "gossip": "Celebrity & Gossip",
+    "gossip": "Celebrity & Gist",
     "football": "Football",
     "sports": "Sports",
     "entertainment": "Entertainment",
     "lifestyle": "Lifestyle",
     "tech": "Tech & Gadgets",
-    "viral": "Viral & Trending",
+    "viral": "Viral",
     "world": "World News",
     "education": "Education",
     "business": "Business",
@@ -95,23 +96,25 @@ def safe_date(d):
     except: return datetime.now(timezone.utc)
 
 def get_image(e):
-    # Fast + reliable image extractor
-    if hasattr(e, 'media_content'):
-        for m in e.media_content:
-            u = m.get('url')
-            if u and 'logo' not in u.lower(): return u
-    if hasattr(e, 'media_thumbnail'):
-        for t in e.media_thumbnail:
-            if t.get('url'): return t['url']
+    # Fast & reliable — no heavy requests
+    for attr in ['media_content', 'media_thumbnail']:
+        if hasattr(e, attr):
+            items = getattr(e, attr)
+            if isinstance(items, list):
+                for item in items:
+                    url = item.get('url')
+                    if url and 'logo' not in url.lower():
+                        return url
     content = e.get('summary') or e.get('description') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
-        if img and img.get('src'):
-            src = img['src']
-            if src.startswith('//'): src = 'https:' + src
-            if 'logo' not in src.lower():
-                return src
+        if img:
+            src = img.get('src') or img.get('data-src')
+            if src:
+                if src.startswith('//'): src = 'https:' + src
+                if 'logo' not in src.lower():
+                    return src
     return "https://via.placeholder.com/800x450/111827/00d4aa?text=NaijaBuzz"
 
 @app.route('/')
@@ -141,10 +144,10 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>NaijaBuzz - Nigeria News, Gossip, Football & Entertainment</title>
-        <meta name="description" content="Latest Nigerian news, BBNaija, Premier League, tech, politics & viral gists — updated every 10 mins">
-        <meta property="og:title" content="NaijaBuzz - #1 Trending News in Nigeria">
-        <meta property="og:description" content="Fresh gists, football, entertainment & viral stories">
+        <title>NaijaBuzz - Latest Nigeria News, Gossip & Football</title>
+        <meta name="description" content="Fresh Nigerian news, BBNaija gist, Premier League, tech & entertainment — updated every 10 minutes">
+        <meta property="og:title" content="NaijaBuzz - Nigeria's #1 Trending News Hub">
+        <meta property="og:description" content="Hot gists, football scores, celebrity news & viral stories">
         <meta property="og:image" content="https://via.placeholder.com/1200x630/111827/00d4aa?text=NAIJABUZZ">
         <link rel="canonical" href="https://blog.naijabuzz.com">
         <meta name="robots" content="index, follow">
@@ -153,40 +156,40 @@ def index():
             :root{--p:#00d4aa;--d:#0a0a0a;--g:#64748b;--l:#f8fafc;--w:#fff;}
             *{margin:0;padding:0;box-sizing:border-box;}
             body{font-family:'Inter',sans-serif;background:var(--l);color:#1e293b;}
-            .header{background:var(--d);color:white;padding:22px 0;position:fixed;top:0;width:100%;z-index:1002;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+            .header{background:var(--d);color:white;padding:24px 0;position:fixed;top:0;width:100%;z-index:1002;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
             .header-inner{max-width:1400px;margin:0 auto;padding:0 20px;display:flex;justify-content:center;align-items:center;gap:20px;}
-            h1{font-size:2.6rem;font-weight:900;letter-spacing:-1.5px;}
-            .tagline{font-size:1.15rem;font-weight:500;opacity:0.95;}
-            .nav{background:var(--w);position:fixed;top:102px;width:100%;z-index:1001;padding:20px 0;border-bottom:6px solid var(--p);box-shadow:0 10px 30px rgba(0,0,0,0.12);}
-            .nav-inner{max-width:1400px;margin:0 auto;padding:0 20px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
-            .nav a{padding:16px 32px;background:#1e1e1e;color:white;border-radius:50px;font-weight:700;font-size:1.05rem;text-decoration:none;transition:.3s;border:2px solid transparent;}
-            .nav a.active{background:var(--p);border-color:var(--p);box-shadow:0 8px 25px rgba(0,212,170,0.5);}
-            .nav a:hover:not(.active){background:#333;border-color:var(--p);transform:scale(1.05);}
-            .main{padding-top:190px;max-width:1500px;margin:0 auto;padding:30px 20px;}
-            .grid{display:grid;gap:34px;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));}
-            .card{background:var(--w);border-radius:26px;overflow:hidden;box-shadow:0 15px 40px rgba(0,0,0,0.15);transition:0.4s;}
-            .card:hover{transform:translateY(-16px);box-shadow:0 40px 80px rgba(0,0,0,0.25);}
-            .img{height:260px;overflow:hidden;}
-            .img img{width:100%;height:100%;object-fit:cover;transition:0.7s;}
-            .card:hover img{transform:scale(1.2);}
-            .content{padding:30px;}
-            .cat{color:var(--p);font-weight:800;font-size:0.95rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
-            h2{font-size:1.6rem;line-height:1.35;margin:14px 0;font-weight:900;}
+            h1{font-size:2.8rem;font-weight:900;letter-spacing:-2px;}
+            .tagline{font-size:1.2rem;font-weight:500;opacity:0.94;}
+            .nav{background:var(--w);position:fixed;top:108px;width:100%;z-index:1001;padding:20px 0;border-bottom:6px solid var(--p);box-shadow:0 12px 35px rgba(0,0,0,0.15);}
+            .nav-inner{max-width:1400px;margin:0 auto;padding:0 20px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap;overflow-x:auto;}
+            .nav a{padding:16px 34px;background:#1a1a1a;color:white;border-radius:50px;font-weight:700;font-size:1.05rem;text-decoration:none;transition:.3s;border:2px solid transparent;}
+            .nav a.active{background:var(--p);border-color:var(--p);box-shadow:0 10px 30px rgba(0,212,170,0.5);}
+            .nav a:hover:not(.active){background:#2d2d2d;border-color:var(--p);}
+            .main{padding-top:200px;max-width:1500px;margin:0 auto;padding:30px 20px;}
+            .grid{display:grid;gap:36px;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));}
+            .card{background:var(--w);border-radius:28px;overflow:hidden;box-shadow:0 16px 45px rgba(0,0,0,0.16);transition:0.4s;}
+            .card:hover{transform:translateY(-18px);box-shadow:0 45px 90px rgba(0,0,0,0.28);}
+            .img{height:270px;overflow:hidden;background:#000;}
+            .img img{width:100%;height:100%;object-fit:cover;transition:0.8s;}
+            .card:hover img{transform:scale(1.22);}
+            .content{padding:32px;}
+            .cat{color:var(--p);font-weight:800;font-size:1rem;text-transform:uppercase;letter-spacing:1.8px;margin-bottom:12px;}
+            h2{font-size:1.65rem;line-height:1.32;margin:14px 0;font-weight:900;}
             h2 a{color:#0a0a0a;text-decoration:none;}
             h2 a:hover{color:var(--p);}
-            .meta{color:var(--g);font-size:1rem;margin:12px 0;}
-            .excerpt{color:#333;font-size:1.1rem;line-height:1.75;margin:18px 0;}
-            .readmore{background:var(--p);color:white;padding:16px 36px;border-radius:50px;font-weight:700;display:inline-block;transition:.3s;}
-            .readmore:hover{background:#00b894;transform:scale(1.05);}
-            .pagination{margin:90px 0;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;}
-            .pagination a{padding:16px 26px;background:#1e1e1e;color:white;border-radius:50px;font-weight:600;}
+            .meta{color:var(--g);font-size:1.02rem;margin:14px 0;font-weight:600;}
+            .excerpt{color:#333;font-size:1.12rem;line-height:1.78;margin:20px 0;}
+            .readmore{background:var(--p);color:white;padding:18px 40px;border-radius:50px;font-weight:700;display:inline-block;transition:.3s;}
+            .readmore:hover{background:#00b894;transform:scale(1.06);}
+            .pagination{margin:100px 0;display:flex;justify-content:center;gap:18px;flex-wrap:wrap;}
+            .pagination a{padding:16px 28px;background:#1a1a1a;color:white;border-radius:50px;font-weight:600;}
             .pagination a.active,.pagination a:hover{background:var(--p);}
-            footer{background:var(--d);color:#94a3b8;padding:80px 20px;text-align:center;font-size:1.1rem;}
+            footer{background:var(--d);color:#94a3b8;padding:90px 20px;text-align:center;font-size:1.15rem;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(3,1fr);}}
             @media(max-width:768px){
-                h1{font-size:2.2rem;}
-                .nav{top:98px;}
-                .main{padding-top:180px;}
+                h1{font-size:2.3rem;}
+                .nav{top:102px;}
+                .main{padding-top:190px;}
                 .grid{grid-template-columns:1fr 1fr;}
             }
             @media(max-width:480px){
@@ -262,7 +265,6 @@ def cron():
             try: Post.query.first()
             except: db.create_all()
 
-            random.shuffle(FEEDS)
             for cat, url in FEEDS:
                 try:
                     f = feedparser.parse(url)
@@ -286,7 +288,13 @@ def cron():
                 except: continue
     except: pass
 
-    return f"<h1 style='text-align:center;padding:120px;color:#00d4aa;font-family:system-ui;'>NaijaBuzz CRON SUCCESS<br><small>Added {added} stories</small></h1>"
+    return f"""
+    <div style="font-family:system-ui;text-align:center;padding:120px;background:#f8fafc;">
+        <h1 style="color:#00d4aa;font-size:4rem;">CRON SUCCESS</h1>
+        <h2 style="font-size:2.5rem;margin:30px 0;">Added {added} new stories</h2>
+        <p style="font-size:1.3rem;"><a href="/" style="color:#00d4aa;text-decoration:none;">Back to NaijaBuzz</a></p>
+    </div>
+    """
 
 @app.route('/ping')
 def ping(): return "NaijaBuzz is LIVE!", 200
