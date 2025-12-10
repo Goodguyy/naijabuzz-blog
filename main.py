@@ -1,13 +1,12 @@
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib, time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 
 app = Flask(__name__)
 
-# Database
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -35,7 +34,7 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# ALL 58 ORIGINAL SOURCES — FULL POWER
+# ALL 58 SOURCES — PUNCH IS INCLUDED AND WORKING
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -100,18 +99,22 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    if hasattr(entry, 'enclosures'):
-        for e in entry.enclosures:
-            if 'image' in str(e.type or '').lower():
-                return e.href
+    # PUNCH FIX: Always try to get real image from <img> in summary, ignore logo
     content = entry.get('summary') or entry.get('description') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
         if img and img.get('src'):
-            url = img['src']
-            if url.startswith('//'): url = 'https:' + url
-            return url if url.startswith('http') else None
+            src = img['src']
+            if src.startswith('//'): src = 'https:' + src
+            # Block only Punch logo, allow all other images
+            if 'punch-logo' not in src.lower() and 'logo' not in src.lower():
+                return src
+    # Fallback to enclosures
+    if hasattr(entry, 'enclosures'):
+        for e in entry.enclosures:
+            if 'image' in str(e.type or '').lower():
+                return e.href
     return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
 
 def parse_date(d):
@@ -133,8 +136,7 @@ def index():
 
     def ago(dt):
         if not dt: return "Just now"
-        if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
-        diff = datetime.now(timezone.utc) - dt
+        diff = datetime.now(timezone.utc) - (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc))
         if diff < timedelta(hours=1): return f"{int(diff.total_seconds()//60)}m ago"
         if diff < timedelta(days=1): return f"{int(diff.total_seconds()//3600)}h ago"
         return dt.strftime("%b %d, %I:%M%p")
@@ -171,7 +173,6 @@ def index():
             .card img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
             .card:hover img{transform:scale(1.08);}
             .placeholder{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;z-index:1;pointer-events:none;}
-            .no-image .placeholder-text{display:block !important;}
             .content{padding:24px;}
             .card h2{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:800;}
             .card h2 a{color:#1a1a1a;text-decoration:none;}
@@ -212,9 +213,8 @@ def index():
                     {% for p in posts %}
                     <div class="card">
                         <div class="img-container">
-                            <div class="placeholder-text" style="display:none;">NaijaBuzz.com<br>No Image Available</div>
-                            <img src="{{ p.image }}" alt="{{ p.title }}"
-                                 onerror="this.style.display='none'; this.previousElementSibling.style.display='block';">
+                            <div class="placeholder" style="display:none;">NaijaBuzz<br>No Image</div>
+                            <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'; this.previousElementSibling.style.display='block';">
                         </div>
                         <div class="content">
                             <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
@@ -230,14 +230,6 @@ def index():
                     </p></div>
                 {% endif %}
             </div>
-
-            {% if total_pages > 1 %}
-            <div class="pagination">
-                {% for p in range(1, total_pages + 1) %}
-                <a href="/?cat={{ selected }}&page={{ p }}" class="page-link {{ 'active' if p == page else '' }}">{{ p }}</a>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
 
         <footer>© 2025 NaijaBuzz • blog.naijabuzz.com • Auto-updated every 15 mins</footer>
@@ -277,7 +269,7 @@ def cron():
     return f"NaijaBuzz healthy! Added {added} fresh stories!"
 
 @app.route('/robots.txt')
-def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type':'text/plain'}
+def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200
 
 @app.route('/sitemap.xml')
 def sitemap():
