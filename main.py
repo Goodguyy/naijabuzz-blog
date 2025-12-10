@@ -159,12 +159,10 @@ def index():
             header{background:var(--dark);color:white;text-align:center;padding:18px 15px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 15px rgba(0,0,0,0.15);}
             h1{margin:0;font-size:34px;font-weight:900;letter-spacing:1px;}
             .tagline{font-size:16px;margin-top:6px;opacity:0.95;font-weight:500;}
-            .tabs-container{background:white;padding:14px 0;overflow-x:auto;white-space:nowrap;position:sticky;top:76px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.1);scrollbar-width:none;}
-            .tabs-container::-webkit-scrollbar{display:none;}
+            .tabs-container{background:white;padding:14px 0;overflow-x:auto;white-space:nowrap;position:sticky;top:76px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
             .tabs{display:inline-flex;gap:10px;padding:0 15px;}
-            .tab{padding:11px 22px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;transition:all 0.3s;box-shadow:0 3px 8px rgba(0,0,0,0.15);}
-            .tab:hover{background:var(--primary);transform:translateY(-2px);box-shadow:0 6px 15px rgba(0,212,170,0.3);}
-            .tab.active{background:var(--primary);box-shadow:0 6px 20px rgba(0,212,170,0.4);}
+            .tab{padding:11px 22px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;transition:all 0.3s;}
+            .tab:hover,.tab.active{background:var(--primary);}
             .container{max-width:1400px;margin:30px auto;padding:0 15px;}
             .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
             .card{background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:all 0.4s;}
@@ -172,20 +170,19 @@ def index():
             .img-container{position:relative;height:220px;background:#1e1e1e;overflow:hidden;}
             .card img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
             .card:hover img{transform:scale(1.08);}
-            .placeholder-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;z-index:1;}
-            .no-image .placeholder-text{display:block;}
+            .placeholder{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:18px;font-weight:bold;text-align:center;line-height:1.4;z-index:1;pointer-events:none;}
+            .no-image .placeholder-text{display:block !important;}
             .content{padding:24px;}
             .card h2{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:800;}
-            .card h2 a{color:#1a1a1a;text-decoration:none;transition:color 0.3s;}
+            .card h2 a{color:#1a1a1a;text-decoration:none;}
             .card h2 a:hover{color:var(--primary);}
             .meta{font-size:13.5px;color:var(--primary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
             .card p{color:#444;font-size:15.8px;line-height:1.65;margin:0 0 16px;}
-            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;box-shadow:0 4px 15px rgba(0,212,170,0.3);}
-            .readmore:hover{background:#00b894;transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,212,170,0.4);}
+            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;transition:all 0.3s;}
+            .readmore:hover{background:#00b894;transform:translateY(-2px);}
             .pagination{display:flex;justify-content:center;gap:12px;margin:40px 0;}
             .page-link{padding:12px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;transition:all 0.3s;}
-            .page-link:hover{background:var(--primary);}
-            .page-link.active{background:var(--primary);box-shadow:0 5px 15px rgba(0,212,170,0.4);}
+            .page-link:hover,.page-link.active{background:var(--primary);}
             footer{text-align:center;padding:60px 20px;background:white;color:var(--gray);font-size:15px;border-top:1px solid #eee;}
             @media(max-width:768px){
                 .grid{grid-template-columns:1fr;gap:22px;}
@@ -213,10 +210,11 @@ def index():
             <div class="grid">
                 {% if posts %}
                     {% for p in posts %}
-                    <div class="card {{ 'no-image' if 'placeholder.com' in p.image else '' }}">
+                    <div class="card">
                         <div class="img-container">
-                            <div class="placeholder-text">NaijaBuzz.com<br>No Image Available</div>
-                            <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.parentElement.parentElement.classList.add('no-image')">
+                            <div class="placeholder-text" style="display:none;">NaijaBuzz.com<br>No Image Available</div>
+                            <img src="{{ p.image }}" alt="{{ p.title }}"
+                                 onerror="this.style.display='none'; this.previousElementSibling.style.display='block';">
                         </div>
                         <div class="content">
                             <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
@@ -259,7 +257,7 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:20]:  # Fast enough for free tier
+            for cat, url in FEEDS[:20]:
                 try:
                     f = feedparser.parse(url)
                     for e in f.entries[:4]:
@@ -286,8 +284,7 @@ def sitemap():
     init_db()
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://blog.naijabuzz.com</loc><changefreq>hourly</changefreq></url>\n'
-    posts = Post.query.order_by(Post.pub_date.desc()).limit(500).all()
-    for p in posts:
+    for p in Post.query.order_by(Post.pub_date.desc()).limit(500).all():
         safe = p.link.replace('&','&amp;')
         date = p.pub_date.strftime("%Y-%m-%d") if p.pub_date else datetime.now().strftime("%Y-%m-%d")
         xml += f'  <url><loc>{safe}</loc><lastmod>{date}</lastmod></url>\n'
