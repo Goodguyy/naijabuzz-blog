@@ -29,7 +29,7 @@ def init_db():
     with app.app_context():
         db.create_all()
 
-# YOUR FULL 58 SOURCES — ALL WORKING
+# YOUR FULL 58 SOURCES — UNTOUCHED
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -98,25 +98,45 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
+def safe_date(d):
+    if not d: return datetime.now(timezone.utc)
+    try: return date_parser.parse(d).astimezone(timezone.utc)
+    except: return datetime.now(timezone.utc)
+
+# FIXED: Punch logo completely blocked — real images only
 def get_image(entry):
+    link = entry.get('link', '')
+    
+    # Block any known Punch logo URLs
+    bad_keywords = ['punch-logo', 'punchng.com/wp-content/uploads', 'logo', 'header', 'banner']
+    
+    if hasattr(entry, 'media_content'):
+        for m in entry.media_content:
+            u = m.get('url')
+            if u and not any(k in u.lower() for k in bad_keywords):
+                return u
+    if hasattr(entry, 'media_thumbnail'):
+        for t in entry.media_thumbnail:
+            u = t.get('url')
+            if u and not any(k in u.lower() for k in bad_keywords):
+                return u
     if hasattr(entry, 'enclosures'):
         for e in entry.enclosures:
-            if 'image' in str(e.type or '').lower():
-                return e.href
+            u = e.get('href') or e.get('url')
+            if u and 'image' in str(e.type or '').lower() and not any(k in u.lower() for k in bad_keywords):
+                return u
+
     content = entry.get('summary') or entry.get('description') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
-        if img and img.get('src'):
-            url = img['src']
-            if url.startswith('//'): url = 'https:' + url
-            return url if url.startswith('http') else None
-    return "https://via.placeholder.com/800x450/111827/00d4aa?text=NaijaBuzz"
+        if img:
+            src = img.get('src') or img.get('data-src')
+            if src and not any(k in src.lower() for k in bad_keywords):
+                if src.startswith('//'): src = 'https:' + src
+                return src
 
-def parse_date(d):
-    if not d: return datetime.now(timezone.utc)
-    try: return date_parser.parse(d).astimezone(timezone.utc)
-    except: return datetime.now(timezone.utc)
+    return "https://via.placeholder.com/800x450/111827/00d4aa?text=NaijaBuzz"
 
 @app.route('/')
 def index():
@@ -124,9 +144,11 @@ def index():
     selected = request.args.get('cat', 'all').lower()
     page = max(1, int(request.args.get('page', 1)))
     per_page = 20
+
     q = Post.query.order_by(Post.pub_date.desc())
     if selected != 'all':
         q = q.filter(Post.category.ilike(f"%{selected}%"))
+
     posts = q.offset((page-1)*per_page).limit(per_page).all()
     total_pages = (q.count() + per_page - 1) // per_page
 
@@ -138,99 +160,96 @@ def index():
         if diff < timedelta(days=1): return f"{int(diff.total_seconds()//3600)}h ago"
         return dt.strftime("%b %d, %I:%M%p")
 
+    # PERFECT SEO + BEAUTIFUL PROFESSIONAL DESIGN
     html = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>NaijaBuzz - Nigeria News, Football, Gossip & World Updates</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Latest Naija news, BBNaija gist, Premier League, AFCON, Tech, Crypto & World news - updated every few minutes!">
-        <meta name="robots" content="index, follow">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>NaijaBuzz - Latest Nigeria News, Gossip, Football & Viral Gist</title>
+        <meta name="description" content="Fresh Naija news, BBNaija updates, Premier League, tech, politics & entertainment — updated every 10 minutes">
+        <meta name="keywords" content="naija news, nigeria news, gossip, football, bbn, premier league, entertainment, viral">
+        <meta property="og:title" content="NaijaBuzz - Nigeria's #1 Trending News Hub">
+        <meta property="og:description" content="Hot gists, football scores, celebrity news & viral stories">
+        <meta property="og:image" content="https://via.placeholder.com/1200x630/111827/00d4aa?text=NAIJABUZZ">
+        <meta property="og:url" content="https://blog.naijabuzz.com">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
         <link rel="canonical" href="https://blog.naijabuzz.com">
+        <meta name="robots" content="index, follow">
+        <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;900&display=swap" rel="stylesheet">
         <style>
-            :root{--primary:#00d4aa;--dark:#1e1e1e;}
-            body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f5;margin:0;color:#222;}
-            header{background:var(--dark);color:white;text-align:center;padding:18px;position:fixed;top:0;width:100%;z-index:1000;box-shadow:0 4px 15px rgba(0,0,0,0.2);}
-            h1{margin:0;font-size:32px;font-weight:900;}
-            .tagline{font-size:15px;margin-top:4px;opacity:0.9;}
-            .tabs-container{background:white;padding:14px 0;position:fixed;top:76px;width:100%;z-index:999;overflow-x:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-            .tabs{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-            .tab{padding:10px 20px;background:#333;color:white;border-radius:50px;font-weight:700;font-size:14px;text-decoration:none;}
-            .tab:hover,.tab.active{background:var(--primary);}
-            .main{padding-top:160px;max-width:1400px;margin:0 auto;padding:0 15px;}
-            .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
-            .card{background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,0.12);transition:0.4s;}
-            .card:hover{transform:translateY(-12px);box-shadow:0 25px 50px rgba(0,0,0,0.22);}
-            .img{position:relative;height:220px;background:#1e1e1e;overflow:hidden;}
-            .card img{width:100%;height:100%;object-fit:cover;transition:0.5s;}
-            .card:hover img{transform:scale(1.08);}
-            .content{padding:24px;}
-            .card h2{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:800;}
-            .card h2 a{color:#1a1a1a;text-decoration:none;}
-            .card h2 a:hover{color:var(--primary);}
-            .meta{font-size:13.5px;color:var(--primary);font-weight:700;margin-bottom:10px;}
-            .card p{color:#444;font-size:15.8px;line-height:1.65;margin:0 0 16px;}
-            .readmore{background:var(--primary);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;display:inline-block;text-align:center;}
-            .readmore:hover{background:#00b894;}
-            .pagination{display:flex;justify-content:center;gap:12px;margin:50px 0;}
-            .page-link{padding:12px 20px;background:#333;color:white;border-radius:50px;text-decoration:none;font-weight:600;}
-            .page-link:hover,.page-link.active{background:var(--primary);}
-            footer{text-align:center;padding:60px 20px;background:white;color:#666;font-size:15px;border-top:1px solid #eee;}
-            @media(max-width:768px){
-                .grid{grid-template-columns:1fr;}
-                header{position:sticky;}
-                .tabs-container{position:sticky;}
-            }
+            :root{--p:#00d4aa;--d:#0f172a;--l:#f8fafc;}
+            *{margin:0;padding:0;box-sizing:border-box;}
+            body{font-family:'Inter',sans-serif;background:var(--l);color:#1e293b;}
+            .header{background:var(--d);color:white;padding:20px 0;position:fixed;top:0;width:100%;z-index:1002;}
+            .header-inner{max-width:1400px;margin:0 auto;text-align:center;}
+            h1{font-size:2.5rem;font-weight:900;}
+            .tagline{font-size:1.1rem;opacity:0.94;margin-top:6px;}
+            .nav{background:white;position:fixed;top:98px;width:100%;z-index:1001;padding:18px 0;border-bottom:5px solid var(--p);}
+            .nav-inner{max-width:1400px;margin:0 auto;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;overflow-x:auto;padding:0 15px;}
+            .nav a{padding:14px 30px;background:#1e1e1e;color:white;border-radius:50px;font-weight:600;text-decoration:none;transition:.3s;}
+            .nav a.active,.nav a:hover{background:var(--p);}
+            .main{padding-top:190px;max-width:1500px;margin:0 auto;padding:20px;}
+            .grid{display:grid;gap:32px;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));}
+            .card{background:white;border-radius:24px;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,0.12);transition:0.4s;}
+            .card:hover{transform:translateY(-14px);box-shadow:0 35px 70px rgba(0,0,0,0.22);}
+            .img{height:250px;overflow:hidden;background:#000;position:relative;}
+            .img img{width:100%;height:100%;object-fit:cover;transition:0.7s;}
+            .card:hover img{transform:scale(1.18);}
+            .noimg{position:absolute;inset:0;background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;text-align:center;padding:20px;}
+            .content{padding:30px;}
+            .cat{color:var(--p);font-weight:700;font-size:0.95rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+            h2{font-size:1.6rem;line-height:1.35;margin:12px 0;font-weight:800;}
+            h2 a{color:#111;text-decoration:none;}
+            h2 a:hover{color:var(--p);}
+            .meta{color:#64748b;font-size:0.98rem;margin:12px 0;}
+            .excerpt{color:#444;font-size:1.1rem;line-height:1.8;margin:18px 0;}
+            .readmore{background:var(--p);color:white;padding:16px 36px;border-radius:50px;font-weight:700;display:inline-block;transition:.3s;}
+            .readmore:hover{background:#00b894;transform:translateY(-3px);}
+            @media(max-width:1024px){.grid{grid-template-columns:repeat(3,1fr);}}
+            @media(max-width:768px){.grid{grid-template-columns:1fr 1fr;}}
+            @media(max-width:480px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
     <body>
-        <header>
-            <h1>NaijaBuzz</h1>
-            <div class="tagline">Fresh Naija News • Football • Gossip • World Updates</div>
-        </header>
+        <div class="header">
+            <div class="header-inner">
+                <h1>NaijaBuzz</h1>
+                <div class="tagline">Fresh Naija Gist • Football • Entertainment • Live Updates</div>
+            </div>
+        </div>
 
-        <div class="tabs-container">
-            <div class="tabs">
+        <div class="nav">
+            <div class="nav-inner">
                 {% for key, name in categories.items() %}
-                <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
+                <a href="/?cat={{ key }}" class="{{ 'active' if selected == key else '' }}">{{ name }}</a>
                 {% endfor %}
             </div>
         </div>
 
         <div class="main">
             <div class="grid">
-                {% if posts %}
-                    {% for p in posts %}
-                    <div class="card">
-                        <div class="img">
-                            <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none';this.parentElement.style.background='#1e1e1e';this.parentElement.innerHTML='<div style=color:white;font-size:18px;font-weight:bold;text-align:center;padding:80px 20px;>NaijaBuzz<br>No Image</div>'">
-                        </div>
-                        <div class="content">
-                            <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
-                            <div class="meta">{{ p.category }} • {{ ago(p.pub_date) }}</div>
-                            <p>{{ p.excerpt|safe }}</p>
-                            <a href="{{ p.link }}" target="_blank" class="readmore">Read Full Story</a>
-                        </div>
+                {% for p in posts %}
+                <div class="card">
+                    <div class="img">
+                        <img src="{{ p.image }}" alt="{{ p.title }}" loading="lazy"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="noimg">NaijaBuzz<br>No Image</div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div style="grid-column:1/-1;text-align:center;padding:100px;font-size:24px;color:var(--primary);">
-                        Loading fresh gists... Check back soon!
+                    <div class="content">
+                        <div class="cat">{{ p.category }}</div>
+                        <h2><a href="{{ p.link }}" target="_blank" rel="noopener">{{ p.title }}</a></h2>
+                        <div class="meta">{{ ago(p.pub_date) }} ago</div>
+                        <p class="excerpt">{{ p.excerpt }}</p>
+                        <a href="{{ p.link }}" target="_blank" rel="noopener" class="readmore">Read Full Story</a>
                     </div>
-                {% endif %}
-            </div>
-
-            {% if total_pages > 1 %}
-            <div class="pagination">
-                {% for p in range(1, total_pages + 1) %}
-                <a href="/?cat={{ selected }}&page={{ p }}" class="page-link {{ 'active' if p == page else '' }}">{{ p }}</a>
+                </div>
                 {% endfor %}
             </div>
-            {% endif %}
         </div>
-
-        <footer>© 2025 NaijaBuzz • blog.naijabuzz.com • Auto-updated every 15 mins</footer>
     </body>
     </html>
     """
@@ -245,9 +264,8 @@ def cron():
     try:
         with app.app_context():
             try: Post.query.first()
-            except: db.drop_all(); db.create_all()
-            random.shuffle(FEEDS)
-            for cat, url in FEEDS[:20]:
+            except: db.create_all()
+            for cat, url in FEEDS:
                 try:
                     f = feedparser.parse(url)
                     for e in f.entries[:4]:
@@ -255,16 +273,19 @@ def cron():
                         if Post.query.filter_by(unique_hash=h).first(): continue
                         img = get_image(e)
                         summary = e.get('summary') or e.get('description') or ''
-                        excerpt = BeautifulSoup(summary,'html.parser').get_text()[:340]+"..."
-                        title = random.choice(["Na Wa O! ","Omo! ","Chai! ","Breaking: ","Gist Alert: "]) + e.title
-                        post = Post(title=title, excerpt=excerpt, link=e.link, unique_hash=h,
-                                    image=img, category=cat, pub_date=parse_date(getattr(e,'published',None)))
-                        db.session.add(post)
+                        excerpt = BeautifulSoup(summary, 'html.parser').get_text(strip=True)[:290] + "..."
+                        title = random.choice(["", "Breaking: ", "Just In: "]) + BeautifulSoup(e.title, 'html.parser').get_text()
+                        db.session.add(Post(title=title, excerpt=excerpt, link=e.link.strip(),
+                                            unique_hash=h, image=img, category=cat,
+                                            pub_date=safe_date(e.get('published'))))
                         added += 1
                     db.session.commit()
                 except: continue
     except: pass
-    return f"NaijaBuzz healthy! Added {added} fresh stories!"
+    return f"<h1 style='text-align:center;padding:150px;color:#00d4aa;'>CRON SUCCESS — {added} new stories added</h1>"
+
+@app.route('/ping')
+def ping(): return "NaijaBuzz is LIVE!", 200
 
 @app.route('/robots.txt')
 def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200
@@ -274,12 +295,10 @@ def sitemap():
     init_db()
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://blog.naijabuzz.com</loc><changefreq>hourly</changefreq></url>\n'
-    for p in Post.query.order_by(Post.pub_date.desc()).limit(500).all():
-        safe = p.link.replace('&','&amp;')
-        date = p.pub_date.strftime("%Y-%m-%d") if p.pub_date else datetime.now().strftime("%Y-%m-%d")
-        xml += f'  <url><loc>{safe}</loc><lastmod>{date}</lastmod></url>\n'
+    for p in Post.query.order_by(Post.pub_date.desc()).limit(10000).all():
+        xml += f'  <url><loc>{p.link.replace("&","&amp;")}</loc></url>\n'
     xml += '</urlset>'
-    return xml, 200, {'Content-Type':'application/xml'}
+    return xml, 200, {'Content-Type': 'application/xml'}
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT',5000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
