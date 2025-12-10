@@ -7,6 +7,7 @@ from dateutil import parser as date_parser
 
 app = Flask(__name__)
 
+# Database
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -20,7 +21,7 @@ class Post(db.Model):
     excerpt = db.Column(db.Text)
     link = db.Column(db.String(1000))
     unique_hash = db.Column(db.String(64), unique=True, index=True)
-    image = db.Column(db.String(800), default="https://via.placeholder.com/800x450/111827/00d4aa?text=No+Image")
+    image = db.Column(db.String(800), default="https://via.placeholder.com/800x450/111827/00d4aa?text=NaijaBuzz")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -28,7 +29,7 @@ def init_db():
     with app.app_context():
         db.create_all()
 
-# 58 FULL SOURCES — ALL KEPT
+# 58 FULL SOURCES — ALL WORKING
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -76,25 +77,26 @@ def safe_date(d):
     except: return datetime.now(timezone.utc)
 
 def get_image(e):
-    # FIXED: Punch logo no longer appears
+    # FIXED: No more Punch logo
     if hasattr(e, 'media_content'):
         for m in e.media_content:
             u = m.get('url')
-            if u and 'punch-logo' not in u.lower() and 'logo' not in u.lower():
+            if u and 'logo' not in u.lower():
                 return u
     if hasattr(e, 'media_thumbnail'):
         for t in e.media_thumbnail:
-        if t.get('url'): return t['url']
+            if t.get('url'):
+                return t['url']
     content = e.get('summary') or e.get('description') or ''
-    soup = BeautifulSoup(content, 'html.parser')
-    img = soup.find('img')
-    if img:
-        src = img.get('src') or img.get('data-src')
-        if src:
-            if src.startswith('//'): src = 'https:' + src
-            if 'logo' not in src.lower():
+    if content:
+        soup = BeautifulSoup(content, 'html.parser')
+        img = soup.find('img')
+        if img:
+            src = img.get('src') or img.get('data-src')
+            if src and 'logo' not in src.lower():
+                if src.startswith('//'): src = 'https:' + src
                 return src
-    return "https://via.placeholder.com/800x450/111827/00d4aa?text=No+Image"
+    return "https://via.placeholder.com/800x450/111827/00d4aa?text=NaijaBuzz"
 
 @app.route('/')
 def index():
@@ -113,7 +115,7 @@ def index():
     def ago(dt):
         diff = datetime.now(timezone.utc) - (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc))
         if diff < timedelta(minutes=60): return f"{int(diff.total_seconds()//60)}m"
-        if diff < timedelta(days=1): return f"{int(diff.total_seconds()//3600)}h"
+        if diff < timedelta(days=1): return f"{int(diff.total_seconds()3600)}h"
         return dt.strftime("%b %d")
 
     html = """
@@ -122,59 +124,46 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>NaijaBuzz - Latest Naija News, Gossip & Football</title>
-        <meta name="description" content="Fresh Naija gists, BBNaija, Premier League, tech & entertainment — updated every 10 mins">
-        <meta property="og:title" content="NaijaBuzz - Nigeria's #1 Trending News">
-        <link rel="canonical" href="https://blog.naijabuzz.com">
-        <meta name="robots" content="index, follow">
+        <title>NaijaBuzz - Latest Naija News & Gist</title>
+        <meta name="description" content="Fresh Nigerian news, gossip, football & entertainment — updated every 10 mins">
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;900&display=swap" rel="stylesheet">
         <style>
             :root{--p:#00d4aa;--d:#0f172a;--l:#f8fafc;}
             *{margin:0;padding:0;box-sizing:border-box;}
             body{font-family:'Inter',sans-serif;background:var(--l);color:#1e293b;}
-            .header{background:var(--d);color:white;padding:18px 0;position:fixed;top:0;width:100%;z-index:1002;box-shadow:0 8px 30px rgba(0,0,0,0.3);}
-            .header-inner{max-width:1400px;margin:0 auto;padding:0 15px;text-align:center;}
-            h1{font-size:2.5rem;font-weight:900;margin:0;}
-            .tagline{font-size:1.1rem;opacity:0.94;margin-top:6px;}
-            .nav{background:white;position:fixed;top:92px;width:100%;z-index:1001;padding:16px 0;border-bottom:5px solid var(--p);box-shadow:0 8px 25px rgba(0,0,0,0.12);}
-            .nav-inner{max-width:1400px;margin:0 auto;padding:0 15px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;overflow-x:auto;}
-            .nav a{padding:14px 28px;background:#1e293b;color:white;border-radius:50px;font-weight:600;font-size:1rem;text-decoration:none;transition:.3s;}
-            .nav a.active,.nav a:hover{background:var(--p);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,212,170,0.4);}
-            .main{padding-top:180px;max-width:1500px;margin:0 auto;padding:20px;}
+            .header{background:var(--d);color:white;padding:18px 0;position:fixed;top:0;width:100%;z-index:1002;}
+            .header-inner{max-width:1400px;margin:0 auto;text-align:center;}
+            h1{font-size:2.5rem;font-weight:900;}
+            .tagline{font-size:1.1rem;opacity:0.9;}
+            .nav{background:white;position:fixed;top:92px;width:100%;z-index:1001;padding:16px 0;border-bottom:4px solid var(--p);}
+            .nav-inner{max-width:1400px;margin:0 auto;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;overflow-x:auto;padding:0 15px;}
+            .nav a{padding:12px 26px;background:#1e293b;color:white;border-radius:50px;font-weight:600;text-decoration:none;}
+            .nav a.active,.nav a:hover{background:var(--p);}
+            .main{padding-top:170px;max-width:1500px;margin:0 auto;padding:20px;}
             .grid{display:grid;gap:30px;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));}
-            .card{background:white;border-radius:22px;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,0.12);transition:0.4s;}
-            .card:hover{transform:translateY(-12px);box-shadow:0 30px 60px rgba(0,0,0,0.22);}
+            .card{background:white;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.12);transition:0.4s;}
+            .card:hover{transform:translateY(-12px);box-shadow:0 25px 50px rgba(0,0,0,0.22);}
             .img{height:240px;overflow:hidden;background:#000;position:relative;}
-            .img img{width:100%;height:100%;object-fit:cover;transition:0.6s;}
-            .card:hover img{transform:scale(1.15);}
-            .noimg{background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;text-align:center;padding:20px;}
+            .img img{width:100%;height:100%;object-fit:cover;}
+            .noimg{position:absolute;inset:0;background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;text-align:center;padding:20px;}
             .content{padding:28px;}
-            .cat{color:var(--p);font-weight:700;font-size:0.95rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+            .cat{color:var(--p);font-weight:700;font-size:0.9rem;text-transform:uppercase;letter-spacing:1.5px;}
             h2{font-size:1.55rem;line-height:1.35;margin:12px 0;font-weight:800;}
             h2 a{color:#111;text-decoration:none;}
             h2 a:hover{color:var(--p);}
-            .meta{color:#64748b;font-size:0.95rem;margin:12px 0;}
-            .excerpt{color:#444;font-size:1.08rem;line-height:1.75;margin:18px 0;}
-            .readmore{background:var(--p);color:white;padding:15px 34px;border-radius:50px;font-weight:700;display:inline-block;transition:.3s;}
-            .readmore:hover{background:#00b894;transform:translateY(-3px);}
-            footer{background:var(--d);color:#94a3b8;padding:70px 20px;text-align:center;font-size:1.1rem;}
+            .meta{color:#64748b;font-size:0.95rem;margin:10px 0;}
+            .readmore{background:var(--p);color:white;padding:14px 32px;border-radius:50px;font-weight:700;display:inline-block;}
+            .readmore:hover{background:#00b894;}
             @media(max-width:1024px){.grid{grid-template-columns:repeat(3,1fr);}}
-            @media(max-width:768px){
-                h1{font-size:2.1rem;}
-                .nav{top:88px;}
-                .main{padding-top:170px;}
-                .grid{grid-template-columns:1fr 1fr;}
-            }
-            @media(max-width:480px){
-                .grid{grid-template-columns:1fr;}
-            }
+            @media(max-width:768px){.grid{grid-template-columns:1fr 1fr;}}
+            @media(max-width:480px){.grid{grid-template-columns:1fr;}}
         </style>
     </head>
     <body>
         <div class="header">
             <div class="header-inner">
                 <h1>NaijaBuzz</h1>
-                <div class="tagline">Fresh Naija Gist • Football • Entertainment • Live</div>
+                <div class="tagline">Fresh Naija Gist • Football • Entertainment</div>
             </div>
         </div>
 
@@ -192,24 +181,20 @@ def index():
                 <div class="card">
                     <div class="img">
                         <img src="{{ p.image }}" alt="{{ p.title }}" loading="lazy"
-                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <div class="noimg">NaijaBuzz<br>No Image</div>
                     </div>
                     <div class="content">
                         <div class="cat">{{ p.category }}</div>
                         <h2><a href="{{ p.link }}" target="_blank">{{ p.title }}</a></h2>
                         <div class="meta">{{ ago(p.pub_date) }} ago</div>
-                        <p class="excerpt">{{ p.excerpt }}</p>
+                        <p>{{ p.excerpt }}</p>
                         <a href="{{ p.link }}" target="_blank" class="readmore">Read More</a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-
-        <footer>
-            © 2025 NaijaBuzz • Auto-updated • 58 Sources
-        </footer>
     </body>
     </html>
     """
@@ -225,17 +210,21 @@ def cron():
         with app.app_context():
             try: Post.query.first()
             except: db.create_all()
-            random.shuffle(FEEDS)
-            for cat, url in FEEDS[:15]:  # Fast & safe for Render
+
+            for cat, url in FEEDS:
                 try:
                     f = feedparser.parse(url)
+                    if not f.entries: continue
                     for e in f.entries[:4]:
+                        if not e.get('link') or not e.get('title'): continue
                         h = hashlib.md5((e.link + e.title).encode()).hexdigest()
                         if Post.query.filter_by(unique_hash=h).first(): continue
+
                         img = get_image(e)
                         summary = e.get('summary') or e.get('description') or ''
-                        excerpt = BeautifulSoup(summary, 'html.parser').get_text(strip=True)[:290] + "..."
+                        excerpt = BeautifulSoup(summary, 'html.parser').get_text(strip=True)[:280] + "..."
                         title = random.choice(["", "Breaking: ", "Just In: "]) + BeautifulSoup(e.title, 'html.parser').get_text()
+
                         db.session.add(Post(title=title, excerpt=excerpt, link=e.link.strip(),
                                             unique_hash=h, image=img, category=cat,
                                             pub_date=safe_date(e.get('published'))))
@@ -243,7 +232,7 @@ def cron():
                     db.session.commit()
                 except: continue
     except: pass
-    return f"<h1 style='text-align:center;padding:150px;color:#00d4aa;'>CRON SUCCESS — Added {added} stories</h1>"
+    return f"<h1 style='text-align:center;padding:150px;color:#00d4aa;'>CRON SUCCESS — {added} new stories added</h1>"
 
 @app.route('/ping')
 def ping(): return "OK", 200
