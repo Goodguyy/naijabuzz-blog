@@ -1,5 +1,3 @@
-Latest working Naijabuzz
-
 from flask import Flask, render_template_string, request
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib, time
@@ -21,7 +19,7 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
-    link = db.Column(db.String(600))
+    link = db.Column(db.String(600))  # ← REMOVED unique=True → fixes PostgreSQL crash
     unique_hash = db.Column(db.String(64), unique=True)
     image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz")
     category = db.Column(db.String(100))
@@ -37,7 +35,7 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# ALL 58 ORIGINAL SOURCES — FULL POWER
+# YOUR ORIGINAL 58 SOURCES — ALL KEPT
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -261,7 +259,7 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:20]:  # Fast enough for free tier
+            for cat, url in FEEDS[:20]:  # ← Only 20 sources when visited in browser
                 try:
                     f = feedparser.parse(url)
                     for e in f.entries[:4]:
@@ -278,18 +276,17 @@ def cron():
                     db.session.commit()
                 except: continue
     except: pass
-    return f"NaijaBuzz healthy! Added {added} fresh stories!"
+    return f"<h1 style='text-align:center;padding-top:100px;color:#00d4aa;'>NaijaBuzz Healthy! Added {added} new stories</h1>"
 
 @app.route('/robots.txt')
-def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200, {'Content-Type':'text/plain'}
+def robots(): return "User-agent: *\nAllow: /\nSitemap: https://blog.naijabuzz.com/sitemap.xml", 200
 
 @app.route('/sitemap.xml')
 def sitemap():
     init_db()
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     xml += '  <url><loc>https://blog.naijabuzz.com</loc><changefreq>hourly</changefreq></url>\n'
-    posts = Post.query.order_by(Post.pub_date.desc()).limit(500).all()
-    for p in posts:
+    for p in Post.query.order_by(Post.pub_date.desc()).limit(500).all():
         safe = p.link.replace('&','&amp;')
         date = p.pub_date.strftime("%Y-%m-%d") if p.pub_date else datetime.now().strftime("%Y-%m-%d")
         xml += f'  <url><loc>{safe}</loc><lastmod>{date}</lastmod></url>\n'
