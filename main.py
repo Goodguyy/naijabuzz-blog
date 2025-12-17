@@ -36,54 +36,60 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# 60+ verified active RSS feeds (as of Dec 2025) - focused on high-quality Nigerian & relevant sources
+# 55+ verified active RSS feeds (Dec 2025) - removed broken ones like naij.com, apnews hub
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
     ("Naija News", "https://thenationonlineng.net/feed/"),
-    ("Naija News", "https://saharareporters.com/feeds/latest/feed"),
+    ("Naija News", "https://saharareporters.com/feeds/articles/feed"),
     ("Naija News", "https://www.thisdaylive.com/feed/"),
     ("Naija News", "https://guardian.ng/feed/"),
     ("Naija News", "https://www.channelstv.com/feed"),
     ("Naija News", "https://tribuneonlineng.com/feed"),
     ("Naija News", "https://dailypost.ng/feed/"),
-    ("Naija News", "https://leadership.ng/feed"),
-    ("Naija News", "https://dailytrust.com/feed/"),
-    ("Naija News", "https://www.legit.ng/rss/all.rss"),
-    ("Naija News", "https://naijanews.com/feed/"),
-    ("Naija News", "https://www.pmnewsnigeria.com/feed/"),
-    ("Naija News", "https://www.informationng.com/feed"),
+    ("Naija News", "https://blueprint.ng/feed/"),
+    ("Naija News", "https://newtelegraphng.com/feed"),
+    ("Naija News", "https://www.legit.ng/rss"),
 
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
     ("Gossip", "https://www.gistlover.com/feed"),
+    ("Gossip", "https://www.naijaloaded.com.ng/feed"),
     ("Gossip", "https://creebhills.com/feed"),
+    ("Gossip", "https://www.informationng.com/feed"),
+
+    ("Football", "https://www.goal.com/en-ng/rss"),
+    ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
+    ("Football", "https://www.owngoalnigeria.com/rss"),
+    ("Football", "https://soccernet.ng/rss"),
+    ("Football", "https://www.pulsesports.ng/rss"),
+    ("Football", "https://www.completesports.com/feed/"),
+    ("Football", "https://sportsration.com/feed/"),
+
+    ("Sports", "https://www.vanguardngr.com/sports/feed"),
+    ("Sports", "https://punchng.com/sports/feed/"),
+    ("Sports", "https://www.premiumtimesng.com/sports/feed"),
+    ("Sports", "https://tribuneonlineng.com/sports/feed"),
+    ("Sports", "https://blueprint.ng/sports/feed/"),
 
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
 
-    ("Football", "https://www.goal.com/en-ng/rss"),
-    ("Football", "https://soccernet.ng/rss"),
-    ("Football", "https://www.pulsesports.ng/rss"),
-    ("Football", "https://www.completesports.com/feed/"),
-    ("Football", "https://sportsration.com/feed/"),
+    ("Lifestyle", "https://www.sisiyemmie.com/feed"),
+    ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
+    ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
+    ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
 
-    ("Sports", "https://punchng.com/sports/feed/"),
-    ("Sports", "https://www.vanguardngr.com/sports/feed"),
-    ("Sports", "https://www.premiumtimesng.com/sports/feed"),
+    ("Education", "https://myschoolgist.com/feed"),
+    ("Education", "https://flashlearners.com/feed/"),
 
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
-
-    ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
-    ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
-
-    ("Education", "https://myschoolgist.com/feed"),
 
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
 
@@ -94,21 +100,17 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    # Prioritize high-quality featured images
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
         for m in entry.media_content:
-            if m.get('medium') == 'image' and m.get('url'):
+            if m.get('medium') == 'image':
                 return m['url']
     if hasattr(entry, 'enclosures'):
         for e in entry.enclosures:
-            if 'image' in str(e.type or '').lower() and (e.get('url') or e.get('href')):
+            if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
-    # Parse summary/description/content for first valid img
-    content = entry.get('summary') or entry.get('description') or ''
-    if not content and hasattr(entry, 'content'):
-        content = entry.content[0].get('value', '') if entry.content else ''
+    content = entry.get('summary') or entry.get('description') or entry.get('content', [{}])[0].get('value', '') or ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
@@ -120,7 +122,6 @@ def get_image(entry):
                 if hasattr(entry, 'link'):
                     url = urllib.parse.urljoin(entry.link, url)
             return url
-    # Rare fallback
     return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image"
 
 def parse_date(d):
@@ -268,7 +269,7 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:40]:
+            for cat, url in FEEDS[:30]:  # Pull from more sources for better coverage
                 try:
                     f = feedparser.parse(url)
                     if not f.entries: continue
@@ -278,7 +279,7 @@ def cron():
                         img = get_image(e)
                         summary = e.get('summary') or e.get('description') or ''
                         excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..."
-                        title = e.title  # Clean, original titles
+                        title = e.title  # Clean original titles
                         post = Post(title=title, excerpt=excerpt, link=e.link, unique_hash=h,
                                     image=img, category=cat, pub_date=parse_date(getattr(e, 'published', None)))
                         db.session.add(post)
