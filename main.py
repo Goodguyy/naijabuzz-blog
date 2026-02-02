@@ -9,7 +9,6 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
-import time
 
 app = Flask(__name__)
 
@@ -126,6 +125,8 @@ def get_image(entry):
             if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
     content = entry.get('summary') or e.get('description') or ''
+    if not content and hasattr(entry, 'content'):
+        content = entry.content[0].get('value', '') if entry.content else ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
