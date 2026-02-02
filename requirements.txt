@@ -1,9 +1,9 @@
 flask
-flask-sqlalchemy
+flask_sqlalchemy
 feedparser
 beautifulsoup4
 python-dateutil
 requests
-newspaper3k          # for full article extraction
-openai               # OpenAI-compatible client for xAI API
-python-slugify       # for generating clean URL slugs
+newspaper3k
+python-slugify
+google-generativeai
