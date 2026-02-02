@@ -8,7 +8,7 @@ import urllib.parse
 import requests
 from newspaper import Article
 from slugify import slugify
-import google.generativeai as genai
+from openai import OpenAI
 
 app = Flask(__name__)
 
@@ -43,9 +43,8 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# Expanded & updated feeds for 2026 - added reliable ones to fill categories
+# Your expanded feeds (unchanged)
 FEEDS = [
-    # Naija News / All (more general sources)
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -58,10 +57,9 @@ FEEDS = [
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
-    ("Naija News", "https://www.legit.ng/rss/all.rss"),  # Legit.ng main
-    ("Naija News", "https://www.thecable.ng/feed"),     # TheCable Nigeria
+    ("Naija News", "https://www.legit.ng/rss/all.rss"),
+    ("Naija News", "https://www.thecable.ng/feed"),
 
-    # Gossip / Entertainment (added more active)
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -73,9 +71,8 @@ FEEDS = [
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
-    ("Entertainment", "https://www.legit.ng/rss/entertainment.rss"),  # Legit entertainment
+    ("Entertainment", "https://www.legit.ng/rss/entertainment.rss"),
 
-    # Football / Sports (added more Nigeria-focused)
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
@@ -88,31 +85,26 @@ FEEDS = [
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
     ("Sports", "https://blueprint.ng/sports/feed/"),
-    ("Sports", "https://www.legit.ng/rss/sports.rss"),  # Legit sports
+    ("Sports", "https://www.legit.ng/rss/sports.rss"),
 
-    # Lifestyle (added stronger sources)
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
-    ("Lifestyle", "https://www.bellanaija.com/feed/"),  # BellaNaija main covers lifestyle
+    ("Lifestyle", "https://www.bellanaija.com/feed/"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
 
-    # Education (added more)
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://flashlearners.com/feed/"),
     ("Education", "https://www.legit.ng/rss/education.rss"),
 
-    # Tech (good, added one more)
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
     ("Tech", "https://www.legit.ng/rss/technology.rss"),
 
-    # Viral
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
-    ("Viral", "https://www.legit.ng/rss/viral.rss"),  # if available, or general
+    ("Viral", "https://www.legit.ng/rss/viral.rss"),
 
-    # World (solid, added one backup)
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
@@ -121,7 +113,6 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    # Existing logic...
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -145,48 +136,51 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz"  # Updated text
+    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz"
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Gemini API setup
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    print("Gemini API configured successfully")
+# Groq API setup (OpenAI-compatible, fast & free tier)
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+groq_client = OpenAI(
+    api_key=GROQ_API_KEY,
+    base_url="https://api.groq.com/openai/v1"
+) if GROQ_API_KEY else None
+
+if GROQ_API_KEY:
+    print("Groq API configured successfully")
 else:
-    print("Warning: No GEMINI_API_KEY set - using fallback short excerpts")
+    print("Warning: No GROQ_API_KEY set - using fallback short excerpts")
 
 def rewrite_article(full_text, title, category):
-    if not GEMINI_API_KEY or not full_text.strip():
+    if not groq_client or not full_text.strip():
         return full_text
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-
-        prompt = f"""
-        Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
-        Include relevant Naija context, implications, or angles where natural.
-        Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs, headings if useful), conclusion.
-        Aim for 500–800 words. Do NOT copy original sentences directly.
-        Original title: {title}
-        Category: {category}
-        Content: {full_text[:8000]}
-        """
-
-        response = model.generate_content(prompt)
-        rewritten = response.text.strip()
-
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",  # Strong Groq model for rewriting
+            messages=[{"role": "user", "content": f"""
+                Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
+                Include relevant Naija context, implications, or angles where natural.
+                Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs, headings if useful), conclusion.
+                Aim for 500–800 words. Do NOT copy original sentences directly.
+                Original title: {title}
+                Category: {category}
+                Content: {full_text[:8000]}
+            """}],
+            max_tokens=1200,
+            temperature=0.7
+        )
+        rewritten = response.choices[0].message.content.strip()
         if not rewritten:
             return full_text
-
         return rewritten
     except Exception as e:
-        print(f"Gemini rewrite error: {str(e)[:200]}")
-        return full_text
+        print(f"Groq rewrite error: {str(e)[:200]}")
+        return full_text  # fallback
 
 @app.route('/')
 def index():
@@ -446,7 +440,7 @@ def cron():
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
             print(f"Processing all {len(FEEDS)} feeds...")
-            for cat, url in FEEDS:  # All feeds now
+            for cat, url in FEEDS:
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
