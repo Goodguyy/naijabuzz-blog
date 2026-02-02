@@ -9,6 +9,7 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
+import google.generativeai as genai
 
 app = Flask(__name__)
 
@@ -142,48 +143,92 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Groq API setup
+# Groq primary
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"
 ) if GROQ_API_KEY else None
 
+# Cloudflare backup
+CF_AI_TOKEN = os.environ.get('CLOUDFLARE_AI_TOKEN')
+CF_ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+
+# Gemini third fallback
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
 if GROQ_API_KEY:
-    print("Groq API configured successfully")
-else:
-    print("Warning: No GROQ_API_KEY set - using fallback short excerpts")
+    print("Groq API configured as primary")
+if CF_AI_TOKEN and CF_ACCOUNT_ID:
+    print("Cloudflare Workers AI configured as secondary")
+if GEMINI_API_KEY:
+    print("Gemini API configured as third fallback")
+if not GROQ_API_KEY and not (CF_AI_TOKEN and CF_ACCOUNT_ID) and not GEMINI_API_KEY:
+    print("Warning: No AI APIs configured - using fallback short excerpts")
 
 def rewrite_article(full_text, title, category):
-    if not groq_client or not full_text.strip():
+    if not full_text.strip():
         return full_text
 
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama3-8b-8192",  # Faster, lower token usage model (higher daily limit)
-            messages=[{"role": "user", "content": f"""
-                Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
-                Include relevant Naija context, implications, or angles where natural.
-                Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
-                Aim for 400–600 words. Do NOT copy original sentences directly.
-                Original title: {title}
-                Category: {category}
-                Content: {full_text[:4000]}
-            """}],
-            max_tokens=600,  # Even lower to save tokens & time
-            temperature=0.7
-        )
-        rewritten = response.choices[0].message.content.strip()
-        if not rewritten:
-            return full_text
-        del full_text
-        return rewritten
-    except Exception as e:
-        err_str = str(e)
-        print(f"Groq error for '{title}': {err_str[:200]}")
-        if "429" in err_str:
-            print("Rate limit hit - skipping rewrite for this item")
-        return full_text
+    prompt = f"""
+        Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
+        Include relevant Naija context, implications, or angles where natural.
+        Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
+        Aim for 400–600 words. Do NOT copy original sentences directly.
+        Original title: {title}
+        Category: {category}
+        Content: {full_text[:4000]}
+    """
+
+    # 1. Try Groq first
+    if groq_client:
+        try:
+            response = groq_client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=600,
+                temperature=0.7
+            )
+            rewritten = response.choices[0].message.content.strip()
+            if rewritten:
+                return rewritten
+        except Exception as e:
+            print(f"Groq failed: {str(e)[:200]} - trying Cloudflare")
+
+    # 2. Try Cloudflare
+    if CF_AI_TOKEN and CF_ACCOUNT_ID:
+        try:
+            response = requests.post(
+                f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct",
+                headers={"Authorization": f"Bearer {CF_AI_TOKEN}"},
+                json={
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 600
+                }
+            )
+            response.raise_for_status()
+            result = response.json()
+            rewritten = result.get("result", {}).get("response", "").strip()
+            if rewritten:
+                return rewritten
+        except Exception as e:
+            print(f"Cloudflare failed: {str(e)[:200]} - trying Gemini")
+
+    # 3. Try Gemini as third
+    if GEMINI_API_KEY:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            rewritten = response.text.strip()
+            if rewritten:
+                return rewritten
+        except Exception as e:
+            print(f"Gemini failed: {str(e)[:200]} - using short excerpt")
+
+    # Ultimate fallback
+    return full_text[:800] + "..."
 
 @app.route('/')
 def index():
@@ -505,8 +550,8 @@ def cron():
         print(f"Main cron error: {str(main_ex)}")
     finally:
         if errors:
-            print("Cron summary errors/skips:")
-            for err in errors[:5]:  # Limit log spam
+            print("Cron partial errors:")
+            for err in errors[:5]:
                 print(err)
             if len(errors) > 5:
                 print(f"... and {len(errors)-5} more")
