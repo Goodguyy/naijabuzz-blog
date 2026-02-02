@@ -168,18 +168,18 @@ def rewrite_article(full_text, title, category):
                 Aim for 500–800 words. Do NOT copy original sentences directly.
                 Original title: {title}
                 Category: {category}
-                Content: {full_text[:6000]}  # Reduced to save memory
+                Content: {full_text[:5000]}
             """}],
-            max_tokens=800,  # Reduced to save memory & time
+            max_tokens=800,
             temperature=0.7
         )
         rewritten = response.choices[0].message.content.strip()
         if not rewritten:
             return full_text
-        del full_text  # Free memory early
+        del full_text
         return rewritten
     except Exception as e:
-        print(f"Groq rewrite error: {str(e)[:200]}")
+        print(f"Groq rewrite error for '{title}': {str(e)[:200]}")
         return full_text
 
 @app.route('/')
@@ -434,51 +434,73 @@ def post_detail(slug):
 def cron():
     init_db()
     added = 0
+    errors = []
     try:
         with app.app_context():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            print(f"Processing first 12 feeds (memory-safe mode)...")
-            for cat, url in FEEDS[:12]:  # Reduced from all to 12 to avoid OOM
+            print(f"Processing first 10 feeds (safe mode)...")
+            for cat, url in FEEDS[:10]:  # Reduced to 10 feeds
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
                         print(f"No entries from {url}")
                         continue
-                    for e in f.entries[:4]:  # Reduced from 6 to 4 per feed
-                        h = hashlib.md5((e.link + e.title).encode()).hexdigest()
-                        if Post.query.filter_by(unique_hash=h).first(): continue
-                        img = get_image(e)
-                        summary = e.get('summary') or e.get('description') or ''
-                        excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..."
-                        title = e.title
+                    for e in f.entries[:3]:  # 3 per feed
                         try:
-                            article = Article(e.link)
-                            article.download()
-                            article.parse()
-                            full_text = article.text
-                        except Exception as ex:
-                            print(f"Article fetch error: {ex}")
+                            h = hashlib.md5((e.link + e.title).encode()).hexdigest()
+                            if Post.query.filter_by(unique_hash=h).first():
+                                continue
+                            img = get_image(e)
+                            summary = e.get('summary') or e.get('description') or ''
+                            excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..." if summary else ""
+                            title = e.title or "Untitled"
                             full_text = excerpt
-                        full_content = rewrite_article(full_text, title, cat)
-                        del full_text  # Free memory early
-                        base_slug = slugify(title)
-                        slug = base_slug
-                        count = 1
-                        while Post.query.filter_by(slug=slug).first():
-                            slug = f"{base_slug}-{count}"
-                            count += 1
-                        post = Post(title=title, excerpt=excerpt, full_content=full_content, link=e.link, unique_hash=h,
-                                    slug=slug, image=img, category=cat, pub_date=parse_date(getattr(e, 'published', None)))
-                        db.session.add(post)
-                        added += 1
+                            try:
+                                article = Article(e.link, fetch_images=False)  # Disable image fetch to save memory
+                                article.download()
+                                article.parse()
+                                full_text = article.text or excerpt
+                            except Exception as ex:
+                                print(f"Article fetch skipped for '{title}': {ex}")
+                            full_content = rewrite_article(full_text, title, cat)
+                            del full_text
+                            base_slug = slugify(title)
+                            slug = base_slug
+                            count = 1
+                            while Post.query.filter_by(slug=slug).first():
+                                slug = f"{base_slug}-{count}"
+                                count += 1
+                            post = Post(
+                                title=title,
+                                excerpt=excerpt,
+                                full_content=full_content,
+                                link=e.link,
+                                unique_hash=h,
+                                slug=slug,
+                                image=img,
+                                category=cat,
+                                pub_date=parse_date(getattr(e, 'published', None))
+                            )
+                            db.session.add(post)
+                            added += 1
+                        except Exception as item_ex:
+                            errors.append(f"Item error in {cat} ({url}): {str(item_ex)[:150]}")
+                            continue  # Skip bad item, continue loop
                     db.session.commit()
-                except Exception as ex:
-                    print(f"Feed error {url}: {ex}")
-    except Exception as ex:
-        print(f"Cron error: {ex}")
-    return f"NaijaBuzz updated! Added {added} new stories (memory-safe mode)."
+                except Exception as feed_ex:
+                    errors.append(f"Feed error {url}: {str(feed_ex)[:150]}")
+                    continue  # Skip bad feed
+    except Exception as main_ex:
+        errors.append(f"Main cron error: {str(main_ex)}")
+        print(f"Main cron error: {str(main_ex)}")
+    finally:
+        if errors:
+            print("Cron partial errors:")
+            for err in errors:
+                print(err)
+    return f"NaijaBuzz cron ran! Added {added} new stories. Errors: {len(errors)} (check logs)."
 
 @app.route('/robots.txt')
 def robots():
