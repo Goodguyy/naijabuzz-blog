@@ -679,18 +679,28 @@ def sitemap():
     init_db()
     base_url = "https://blog.naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+    # Homepage
     xml += f'  <url>\n    <loc>{base_url}/</loc>\n    <changefreq>hourly</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+
+    # Category pages
     for key in CATEGORIES.keys():
         if key == 'all': continue
         cat_url = f"{base_url}/?cat={urllib.parse.quote(key)}"
         xml += f'  <url>\n    <loc>{cat_url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+
+    # Pagination pages (limit to 100 to keep file reasonable)
     total_posts = Post.query.count()
     pages = (total_posts // 20) + 1 if total_posts else 1
-    for p in range(1, pages + 1):
+    for p in range(1, min(pages + 1, 101)):
         xml += f'  <url>\n    <loc>{base_url}/?page={p}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
+
+    # Individual posts – use only date (Google-friendly)
     posts = Post.query.all()
     for post in posts:
-        xml += f'  <url>\n    <loc>{base_url}/{post.slug}</loc>\n    <lastmod>{post.pub_date.isoformat()}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
+        lastmod = post.pub_date.strftime('%Y-%m-%d')  # Only YYYY-MM-DD
+        xml += f'  <url>\n    <loc>{base_url}/{post.slug}</loc>\n    <lastmod>{lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
+
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
