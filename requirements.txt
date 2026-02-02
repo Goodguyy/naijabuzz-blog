@@ -6,6 +6,6 @@ python-dateutil
 requests
 newspaper3k
 python-slugify
-google-generativeai
-gunicorn
 lxml_html_clean
+gunicorn
+openai
