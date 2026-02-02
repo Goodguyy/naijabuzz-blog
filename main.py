@@ -29,7 +29,7 @@ class Post(db.Model):
     link = db.Column(db.String(600))
     unique_hash = db.Column(db.String(64), unique=True)
     slug = db.Column(db.String(200), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450?text=NaijaBuzz")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -51,7 +51,7 @@ CATEGORIES = {
     "world": "World"
 }
 
-# FULL original list of 60+ feeds - no reduction
+# Full list of 60+ feeds - no reduction
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -138,7 +138,7 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "https://via.placeholder.com/800x450?text=NaijaBuzz"
+    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
@@ -163,9 +163,9 @@ def rewrite_article(full_text, title, category):
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # Fast, current, low-token model
+            model="llama-3.1-8b-instant",  # Current, fast model
             messages=[{"role": "user", "content": f"""
-                Rewrite this article completely in your own words as an original piece for Nigerian readers.
+                Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
                 Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
                 Aim for 300–500 words. Do NOT copy original sentences directly.
@@ -308,29 +308,19 @@ def index():
             .img-container {
                 position: relative;
                 height: 200px;
-                background: #1e293b;
+                background: #1e1e1e;
                 overflow: hidden;
                 aspect-ratio: 16/9;
             }
-            .card img {
+            .card img, .related-grid img {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
+                object-position: center;
                 transition: transform 0.6s ease;
             }
-            .card:hover img {
-                transform: scale(1.1);
-            }
-            .placeholder {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-size: 1.2rem;
-                font-weight: bold;
-                background: rgba(30,41,59,0.8);
+            .card:hover img, .related-grid .card:hover img {
+                transform: scale(1.05);
             }
             .content { padding: 1.25rem; }
             .card h2 {
@@ -428,8 +418,7 @@ def index():
                     {% for p in posts %}
                     <div class="card">
                         <div class="img-container">
-                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title }}" onerror="this.src='https://via.placeholder.com/800x450?text=Image+Error';">
-                            <div class="placeholder" style="display:none;">No Image</div>
+                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title }}">
                         </div>
                         <div class="content">
                             <h2><a href="/{{ p.slug }}">{{ p.title }}</a></h2>
@@ -586,8 +575,9 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            print(f"Processing first 10 feeds (balanced mode)...")
-            for cat, url in FEEDS[:10]:
+            print(f"Processing batch of 10 feeds...")
+            batch_size = 10
+            for cat, url in FEEDS[:batch_size]:
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
