@@ -9,6 +9,7 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
+import google.generativeai as genai
 
 app = Flask(__name__)
 
@@ -29,7 +30,7 @@ class Post(db.Model):
     link = db.Column(db.String(600))
     unique_hash = db.Column(db.String(64), unique=True)
     slug = db.Column(db.String(200), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450?text=NaijaBuzz+News")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -38,14 +39,21 @@ def init_db():
         db.create_all()
 
 CATEGORIES = {
-    "all": "All News", "naija news": "Naija News", "gossip": "Gossip", "football": "Football",
-    "sports": "Sports", "entertainment": "Entertainment", "lifestyle": "Lifestyle",
-    "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
+    "all": "All News",
+    "naija news": "Naija News",
+    "gossip": "Gossip",
+    "football": "Football",
+    "sports": "Sports",
+    "entertainment": "Entertainment",
+    "lifestyle": "Lifestyle",
+    "education": "Education",
+    "tech": "Tech",
+    "viral": "Viral",
+    "world": "World"
 }
 
-# Expanded & updated feeds for 2026 - added reliable ones to fill categories
+# Expanded feeds for comprehensive coverage
 FEEDS = [
-    # Naija News / All (more general sources)
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -54,14 +62,12 @@ FEEDS = [
     ("Naija News", "https://www.thisdaylive.com/feed/"),
     ("Naija News", "https://guardian.ng/feed/"),
     ("Naija News", "https://www.channelstv.com/feed"),
-    ("Naija News", "https://tribuneonlineng.com/feed"),
+    ("Naija News", "https://tribuneonlineng.com/feed/"),
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
-    ("Naija News", "https://www.legit.ng/rss/all.rss"),  # Legit.ng main
-    ("Naija News", "https://www.thecable.ng/feed"),     # TheCable Nigeria
+    ("Naija News", "https://www.legit.ng/rss"),
 
-    # Gossip / Entertainment (added more active)
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -69,13 +75,7 @@ FEEDS = [
     ("Gossip", "https://www.naijaloaded.com.ng/feed"),
     ("Gossip", "https://creebhills.com/feed"),
     ("Gossip", "https://www.informationng.com/feed"),
-    ("Entertainment", "https://www.pulse.ng/entertainment/rss"),
-    ("Entertainment", "https://notjustok.com/feed/"),
-    ("Entertainment", "https://tooxclusive.com/feed/"),
-    ("Entertainment", "https://www.36ng.com.ng/feed/"),
-    ("Entertainment", "https://www.legit.ng/rss/entertainment.rss"),  # Legit entertainment
 
-    # Football / Sports (added more Nigeria-focused)
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
@@ -83,44 +83,40 @@ FEEDS = [
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
     ("Football", "https://sportsration.com/feed/"),
+
     ("Sports", "https://www.vanguardngr.com/sports/feed"),
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
     ("Sports", "https://blueprint.ng/sports/feed/"),
-    ("Sports", "https://www.legit.ng/rss/sports.rss"),  # Legit sports
 
-    # Lifestyle (added stronger sources)
+    ("Entertainment", "https://www.pulse.ng/rss"),
+    ("Entertainment", "https://notjustok.com/feed/"),
+    ("Entertainment", "https://tooxclusive.com/feed/"),
+    ("Entertainment", "https://www.36ng.com.ng/feed/"),
+
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
-    ("Lifestyle", "https://www.bellanaija.com/feed/"),  # BellaNaija main covers lifestyle
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
 
-    # Education (added more)
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://flashlearners.com/feed/"),
-    ("Education", "https://www.legit.ng/rss/education.rss"),
 
-    # Tech (good, added one more)
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
-    ("Tech", "https://www.legit.ng/rss/technology.rss"),
 
-    # Viral
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
-    ("Viral", "https://www.legit.ng/rss/viral.rss"),  # if available, or general
 
-    # World (solid, added one backup)
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("World", "https://www.theguardian.com/world/rss"),
-    ("World", "https://www.bbc.com/news/world/rss.xml"),
 ]
 
 def get_image(entry):
+    # Maximized for real article images (tested on all major Nigerian sources)
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -144,32 +140,12 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz"  # Updated text
+    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image"
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
-
-# Groq API setup (automatic rewriting)
-groq_client = OpenAI(
-    api_key=os.environ.get('GROQ_API_KEY'),
-    base_url="https://api.groq.com/openai/v1"
-) if os.environ.get('GROQ_API_KEY') else None
-
-def rewrite_article(full_text, title, category):
-    if not groq_client:
-        return full_text  # Fallback to original text if no key
-    prompt = f"Rewrite this article in original words for Naija audience, add local context. Keep factual, engaging, 500-800 words: {full_text[:8000]}"
-    try:
-        response = groq_client.chat.completions.create(
-            model="grok-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1200
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return full_text  # Fallback
 
 @app.route('/')
 def index():
@@ -196,33 +172,16 @@ def index():
         if diff < timedelta(days=7): return f"{diff.days}d ago"
         return dt.strftime("%b %d")
 
-    # Dynamic SEO
-    page_title = f"{CATEGORIES.get(selected, 'All News')} - NaijaBuzz"
-    page_desc = "Latest Nigerian news, football, gossip & updates - AI-curated for you."
-    featured_img = posts[0].image if posts else "https://via.placeholder.com/800x450?text=NaijaBuzz"
-
     html = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>{{ page_title }}</title>
+        <title>NaijaBuzz - Fresh Naija News, Football, Gossip & World Updates</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="{{ page_desc }}">
+        <meta name="description" content="Latest Nigerian news, football, entertainment, gossip, tech & world updates - refreshed every 15 minutes!">
         <meta name="robots" content="index, follow">
         <link rel="canonical" href="https://blog.naijabuzz.com">
-        <meta property="og:title" content="{{ page_title }}">
-        <meta property="og:description" content="{{ page_desc }}">
-        <meta property="og:image" content="{{ featured_img }}">
-        <meta property="og:url" content="https://blog.naijabuzz.com">
-        <meta property="og:type" content="website">
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="{{ page_title }}">
-        <meta name="twitter:description" content="{{ page_desc }}">
-        <meta name="twitter:image" content="{{ featured_img }}">
-        <script type="application/ld+json">
-        {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": [{% for p in posts %}{"@type": "ListItem", "position": {{ loop.index }}, "item": {"@type": "NewsArticle", "headline": "{{ p.title | e }}", "url": "https://blog.naijabuzz.com/{{ p.slug }}", "image": "{{ p.image }}", "datePublished": "{{ p.pub_date.isoformat() }}", "publisher": {"@type": "Organization", "name": "NaijaBuzz"}} }{% if not loop.last %},{% endif %}{% endfor %}]}
-        </script>
         <style>
             :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;}
             body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;}
@@ -279,14 +238,14 @@ def index():
                     {% for p in posts %}
                     <div class="card">
                         <div class="img-container">
-                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div class="placeholder" style="display:none;">No Image Available</div>
                         </div>
                         <div class="content">
-                            <h2><a href="/{{ p.slug }}" rel="noopener">{{ p.title }}</a></h2>
+                            <h2><a href="/{{ p.slug }}" target="_blank" rel="noopener">{{ p.title }}</a></h2>
                             <div class="meta">{{ p.category }} • {{ ago(p.pub_date) }}</div>
                             <p>{{ p.excerpt|safe }}</p>
-                            <a href="/{{ p.slug }}" rel="noopener" class="readmore">Read Full Story →</a>
+                            <a href="{{ p.link }}" target="_blank" rel="noopener" class="readmore">Read Full Story →</a>
                         </div>
                     </div>
                     {% endfor %}
