@@ -29,7 +29,7 @@ class Post(db.Model):
     link = db.Column(db.String(600))
     unique_hash = db.Column(db.String(64), unique=True)
     slug = db.Column(db.String(200), unique=True)
-    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image")
+    image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -43,7 +43,9 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
+# Expanded & updated feeds for 2026 - added reliable ones to fill categories
 FEEDS = [
+    # Naija News / All (more general sources)
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -56,8 +58,10 @@ FEEDS = [
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
-    ("Naija News", "https://www.legit.ng/rss"),
+    ("Naija News", "https://www.legit.ng/rss/all.rss"),  # Legit.ng main
+    ("Naija News", "https://www.thecable.ng/feed"),     # TheCable Nigeria
 
+    # Gossip / Entertainment (added more active)
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -65,7 +69,13 @@ FEEDS = [
     ("Gossip", "https://www.naijaloaded.com.ng/feed"),
     ("Gossip", "https://creebhills.com/feed"),
     ("Gossip", "https://www.informationng.com/feed"),
+    ("Entertainment", "https://www.pulse.ng/entertainment/rss"),
+    ("Entertainment", "https://notjustok.com/feed/"),
+    ("Entertainment", "https://tooxclusive.com/feed/"),
+    ("Entertainment", "https://www.36ng.com.ng/feed/"),
+    ("Entertainment", "https://www.legit.ng/rss/entertainment.rss"),  # Legit entertainment
 
+    # Football / Sports (added more Nigeria-focused)
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
@@ -73,39 +83,45 @@ FEEDS = [
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
     ("Football", "https://sportsration.com/feed/"),
-
     ("Sports", "https://www.vanguardngr.com/sports/feed"),
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
     ("Sports", "https://blueprint.ng/sports/feed/"),
+    ("Sports", "https://www.legit.ng/rss/sports.rss"),  # Legit sports
 
-    ("Entertainment", "https://www.pulse.ng/rss"),
-    ("Entertainment", "https://notjustok.com/feed/"),
-    ("Entertainment", "https://tooxclusive.com/feed/"),
-    ("Entertainment", "https://www.36ng.com.ng/feed/"),
-
+    # Lifestyle (added stronger sources)
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
+    ("Lifestyle", "https://www.bellanaija.com/feed/"),  # BellaNaija main covers lifestyle
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
 
+    # Education (added more)
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://flashlearners.com/feed/"),
+    ("Education", "https://www.legit.ng/rss/education.rss"),
 
+    # Tech (good, added one more)
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
+    ("Tech", "https://www.legit.ng/rss/technology.rss"),
 
+    # Viral
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
+    ("Viral", "https://www.legit.ng/rss/viral.rss"),  # if available, or general
 
+    # World (solid, added one backup)
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("World", "https://www.theguardian.com/world/rss"),
+    ("World", "https://www.bbc.com/news/world/rss.xml"),
 ]
 
 def get_image(entry):
+    # Existing logic...
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -129,14 +145,14 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image"
+    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image+-+NaijaBuzz"  # Updated text
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Gemini API setup (free tier)
+# Gemini API setup
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -170,7 +186,7 @@ def rewrite_article(full_text, title, category):
         return rewritten
     except Exception as e:
         print(f"Gemini rewrite error: {str(e)[:200]}")
-        return full_text  # fallback
+        return full_text
 
 @app.route('/')
 def index():
@@ -240,8 +256,8 @@ def index():
             @media(min-width:1400px){.grid{grid-template-columns:repeat(4,1fr);}}
             .card{background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);transition:0.4s;}
             .card:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(0,0,0,0.15);}
-            .img-container{position:relative;height:200px;background:#1e293b;overflow:hidden;}
-            .card img{width:100%;height:100%;object-fit:cover;transition:transform 0.6s;}
+            .img-container{position:relative;height:200px;background:#1e293b;overflow:hidden;aspect-ratio:16/9;border-radius:12px 12px 0 0;}
+            .card img{width:100%;height:100%;object-fit:cover;object-position:center;transition:transform 0.6s;}
             .card:hover img{transform:scale(1.1);}
             .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;font-weight:bold;background:rgba(30,41,59,0.8);}
             .content{padding:20px;}
@@ -279,7 +295,7 @@ def index():
                     {% for p in posts %}
                     <div class="card">
                         <div class="img-container">
-                            <img src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div class="placeholder" style="display:none;">No Image Available</div>
                         </div>
                         <div class="content">
@@ -292,7 +308,7 @@ def index():
                     {% endfor %}
                 {% else %}
                     <div class="card" style="grid-column:1/-1;text-align:center;padding:80px;">
-                        <p style="font-size:24px;color:var(--primary);">No stories yet — refreshing soon!</p>
+                        <p style="font-size:24px;color:var(--primary);">No stories yet in this category — more coming soon!</p>
                     </div>
                 {% endif %}
             </div>
@@ -330,7 +346,7 @@ def post_detail(slug):
         return dt.strftime("%b %d")
 
     page_title = f"{post.title} - NaijaBuzz"
-    page_desc = post.excerpt
+    page_desc = post.excerpt[:160]
     featured_img = post.image
 
     html = """
@@ -366,13 +382,14 @@ def post_detail(slug):
             .tab{padding:10px 20px;background:#e2e8f0;color:#334155;border-radius:30px;font-weight:600;font-size:14px;text-decoration:none;transition:0.3s;}
             .tab:hover,.tab.active{background:var(--primary);color:white;}
             .single-container{max-width:800px;margin:40px auto;padding:0 16px;}
-            .single-img{width:100%;border-radius:16px;margin-bottom:24px;}
+            .single-img{width:100%;max-height:500px;object-fit:contain;border-radius:16px;margin-bottom:24px;}
             .single-meta{color:var(--primary);font-weight:700;margin-bottom:16px;}
             .single-content{line-height:1.7;color:#334155;}
             .source{margin-top:32px;color:var(--gray);font-style:italic;}
             .related{margin-top:64px;}
             .related h2{margin-bottom:24px;}
             .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:24px;}
+            .related .card img{width:100%;height:150px;object-fit:cover;object-position:center;border-radius:12px 12px 0 0;}
             footer{text-align:center;padding:40px 20px;background:white;color:var(--gray);font-size:14px;border-top:1px solid #e2e8f0;}
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -392,7 +409,7 @@ def post_detail(slug):
         <div class="single-container">
             <h1>{{ post.title }}</h1>
             <div class="single-meta">{{ post.category }} • {{ ago(post.pub_date) }}</div>
-            <img src="{{ post.image }}" alt="{{ post.title }}" class="single-img">
+            <img loading="lazy" src="{{ post.image }}" alt="{{ post.title }}" class="single-img">
             <div class="single-content">{{ post.full_content | safe }}</div>
             <div class="source">Based on original from <a href="{{ post.link }}" target="_blank" rel="noopener nofollow">source</a>. AI-curated version.</div>
             <div class="related">
@@ -401,7 +418,7 @@ def post_detail(slug):
                     {% for r in related %}
                     <div class="card">
                         <div class="img-container">
-                            <img src="{{ r.image }}" alt="{{ r.title }}">
+                            <img loading="lazy" src="{{ r.image }}" alt="{{ r.title }}">
                         </div>
                         <div class="content">
                             <h2><a href="/{{ r.slug }}">{{ r.title }}</a></h2>
@@ -428,10 +445,13 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            for cat, url in FEEDS[:30]:
+            print(f"Processing all {len(FEEDS)} feeds...")
+            for cat, url in FEEDS:  # All feeds now
                 try:
                     f = feedparser.parse(url)
-                    if not f.entries: continue
+                    if not f.entries:
+                        print(f"No entries from {url}")
+                        continue
                     for e in f.entries[:6]:
                         h = hashlib.md5((e.link + e.title).encode()).hexdigest()
                         if Post.query.filter_by(unique_hash=h).first(): continue
@@ -444,7 +464,8 @@ def cron():
                             article.download()
                             article.parse()
                             full_text = article.text
-                        except:
+                        except Exception as ex:
+                            print(f"Article fetch error: {ex}")
                             full_text = excerpt
                         full_content = rewrite_article(full_text, title, cat)
                         base_slug = slugify(title)
@@ -458,8 +479,10 @@ def cron():
                         db.session.add(post)
                         added += 1
                     db.session.commit()
-                except: continue
-    except: pass
+                except Exception as ex:
+                    print(f"Feed error {url}: {ex}")
+    except Exception as ex:
+        print(f"Cron error: {ex}")
     return f"NaijaBuzz updated! Added {added} new stories."
 
 @app.route('/robots.txt')
