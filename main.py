@@ -1,10 +1,14 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, abort
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 import urllib.parse
+import requests
+from newspaper import Article
+from openai import OpenAI
+from slugify import slugify
 
 app = Flask(__name__)
 
@@ -21,8 +25,10 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(600))
     excerpt = db.Column(db.Text)
+    full_content = db.Column(db.Text)
     link = db.Column(db.String(600))
     unique_hash = db.Column(db.String(64), unique=True)
+    slug = db.Column(db.String(200), unique=True)
     image = db.Column(db.String(600), default="https://via.placeholder.com/800x450/1e1e1e/ffffff?text=No+Image")
     category = db.Column(db.String(100))
     pub_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -73,7 +79,7 @@ FEEDS = [
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
-    ("Sports", "https://blueprint.ng/sports/feed/"),
+    ("Sports", "https://blueprint.ng/sports/feed"),
 
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
@@ -132,6 +138,26 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
+# xAI setup (automatic rewriting)
+ai_client = OpenAI(
+    api_key=os.environ.get('XAI_API_KEY'),
+    base_url="https://api.x.ai/v1"
+) if os.environ.get('XAI_API_KEY') else None
+
+def rewrite_article(full_text, title, category):
+    if not ai_client:
+        return full_text  # Fallback to original text if no key
+    prompt = f"Rewrite this article in original words for Naija audience, add local context. Keep factual, engaging, 500-800 words: {full_text[:8000]}"
+    try:
+        response = ai_client.chat.completions.create(
+            model="grok-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200
+        )
+        return response.choices[0].message.content.strip()
+    except:
+        return full_text  # Fallback
+
 @app.route('/')
 def index():
     init_db()
@@ -143,11 +169,10 @@ def index():
     if selected != 'all':
         query = query.filter(Post.category.ilike(f"%{selected}%"))
 
-    posts = query.offset((page - 1) * per_page).limit(per_page + 1).all()  # Fetch one extra to check for next
-
+    posts = query.offset((page - 1) * per_page).limit(per_page + 1).all()
     has_next = len(posts) > per_page
     if has_next:
-        posts = posts[:-1]  # Remove extra
+        posts = posts[:-1]
 
     def ago(dt):
         if not dt: return "Just now"
@@ -158,16 +183,33 @@ def index():
         if diff < timedelta(days=7): return f"{diff.days}d ago"
         return dt.strftime("%b %d")
 
+    # Dynamic SEO
+    page_title = f"{CATEGORIES.get(selected, 'All News')} - NaijaBuzz"
+    page_desc = "Latest Nigerian news, football, gossip & updates - AI-curated for you."
+    featured_img = posts[0].image if posts else "https://via.placeholder.com/800x450?text=NaijaBuzz"
+
     html = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>NaijaBuzz - Fresh Naija News, Football, Gossip & World Updates</title>
+        <title>{{ page_title }}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Latest Nigerian news, football, entertainment, gossip, tech & world updates - refreshed every 15 minutes!">
+        <meta name="description" content="{{ page_desc }}">
         <meta name="robots" content="index, follow">
         <link rel="canonical" href="https://blog.naijabuzz.com">
+        <meta property="og:title" content="{{ page_title }}">
+        <meta property="og:description" content="{{ page_desc }}">
+        <meta property="og:image" content="{{ featured_img }}">
+        <meta property="og:url" content="https://blog.naijabuzz.com">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ page_title }}">
+        <meta name="twitter:description" content="{{ page_desc }}">
+        <meta name="twitter:image" content="{{ featured_img }}">
+        <script type="application/ld+json">
+        {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": [{% for p in posts %}{"@type": "ListItem", "position": {{ loop.index }}, "item": {"@type": "NewsArticle", "headline": "{{ p.title | e }}", "url": "https://blog.naijabuzz.com/{{ p.slug }}", "image": "{{ p.image }}", "datePublished": "{{ p.pub_date.isoformat() }}", "publisher": {"@type": "Organization", "name": "NaijaBuzz"}} }{% if not loop.last %},{% endif %}{% endfor %}]}
+        </script>
         <style>
             :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;}
             body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;}
@@ -228,10 +270,10 @@ def index():
                             <div class="placeholder" style="display:none;">No Image Available</div>
                         </div>
                         <div class="content">
-                            <h2><a href="{{ p.link }}" target="_blank" rel="noopener">{{ p.title }}</a></h2>
+                            <h2><a href="/{{ p.slug }}" rel="noopener">{{ p.title }}</a></h2>
                             <div class="meta">{{ p.category }} • {{ ago(p.pub_date) }}</div>
                             <p>{{ p.excerpt|safe }}</p>
-                            <a href="{{ p.link }}" target="_blank" rel="noopener" class="readmore">Read Full Story →</a>
+                            <a href="/{{ p.slug }}" rel="noopener" class="readmore">Read Full Story →</a>
                         </div>
                     </div>
                     {% endfor %}
@@ -253,12 +295,115 @@ def index():
             </div>
         </div>
 
-        <footer>© 2025 NaijaBuzz • blog.naijabuzz.com • Auto-updated every 15 minutes</footer>
+        <footer>© 2026 NaijaBuzz • blog.naijabuzz.com • Auto-updated every 15 minutes</footer>
     </body>
     </html>
     """
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
-                                  ago=ago, page=page, has_next=has_next)
+                                  ago=ago, page=page, has_next=has_next, page_title=page_title, page_desc=page_desc, featured_img=featured_img)
+
+@app.route('/<slug>')
+def post_detail(slug):
+    post = Post.query.filter_by(slug=slug).first_or_404()
+    related = Post.query.filter(Post.category == post.category, Post.id != post.id).order_by(Post.pub_date.desc()).limit(5).all()
+
+    def ago(dt):
+        if not dt: return "Just now"
+        if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+        diff = datetime.now(timezone.utc) - dt
+        if diff < timedelta(minutes=60): return f"{int(diff.total_seconds()//60)}m ago"
+        if diff < timedelta(hours=24): return f"{int(diff.total_seconds()//3600)}h ago"
+        if diff < timedelta(days=7): return f"{diff.days}d ago"
+        return dt.strftime("%b %d")
+
+    page_title = f"{post.title} - NaijaBuzz"
+    page_desc = post.excerpt
+    featured_img = post.image
+
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>{{ page_title }}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="{{ page_desc }}">
+        <meta name="robots" content="index, follow">
+        <link rel="canonical" href="https://blog.naijabuzz.com/{{ post.slug }}">
+        <meta property="og:title" content="{{ page_title }}">
+        <meta property="og:description" content="{{ page_desc }}">
+        <meta property="og:image" content="{{ featured_img }}">
+        <meta property="og:url" content="https://blog.naijabuzz.com/{{ post.slug }}">
+        <meta property="og:type" content="article">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ page_title }}">
+        <meta name="twitter:description" content="{{ page_desc }}">
+        <meta name="twitter:image" content="{{ featured_img }}">
+        <script type="application/ld+json">
+        {"@context": "https://schema.org", "@type": "NewsArticle", "headline": "{{ post.title | e }}", "image": "{{ featured_img }}", "datePublished": "{{ post.pub_date.isoformat() }}", "publisher": {"@type": "Organization", "name": "NaijaBuzz"}}
+        </script>
+        <style>
+            :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;}
+            body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;}
+            header{background:var(--dark);color:white;text-align:center;padding:20px 16px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+            h1{margin:0;font-size:32px;font-weight:900;}
+            .tagline{font-size:16px;margin-top:8px;opacity:0.9;}
+            .tabs-container{background:white;padding:12px 0;overflow-x:auto;position:sticky;top:80px;z-index:999;box-shadow:0 2px 10px rgba(0,0,0,0.08);}
+            .tabs{display:flex;gap:10px;padding:0 16px;}
+            .tab{padding:10px 20px;background:#e2e8f0;color:#334155;border-radius:30px;font-weight:600;font-size:14px;text-decoration:none;transition:0.3s;}
+            .tab:hover,.tab.active{background:var(--primary);color:white;}
+            .single-container{max-width:800px;margin:40px auto;padding:0 16px;}
+            .single-img{width:100%;border-radius:16px;margin-bottom:24px;}
+            .single-meta{color:var(--primary);font-weight:700;margin-bottom:16px;}
+            .single-content{line-height:1.7;color:#334155;}
+            .source{margin-top:32px;color:var(--gray);font-style:italic;}
+            .related{margin-top:64px;}
+            .related h2{margin-bottom:24px;}
+            .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:24px;}
+            footer{text-align:center;padding:40px 20px;background:white;color:var(--gray);font-size:14px;border-top:1px solid #e2e8f0;}
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <header>
+            <h1>NaijaBuzz</h1>
+            <div class="tagline">Fresh Naija News • Football • Gossip • Entertainment • World Updates</div>
+        </header>
+        <div class="tabs-container">
+            <div class="tabs">
+                {% for key, name in categories.items() %}
+                <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="single-container">
+            <h1>{{ post.title }}</h1>
+            <div class="single-meta">{{ post.category }} • {{ ago(post.pub_date) }}</div>
+            <img src="{{ post.image }}" alt="{{ post.title }}" class="single-img">
+            <div class="single-content">{{ post.full_content | safe }}</div>
+            <div class="source">Based on original from <a href="{{ post.link }}" target="_blank" rel="noopener nofollow">source</a>. AI-curated version.</div>
+            <div class="related">
+                <h2>Related Stories</h2>
+                <div class="related-grid">
+                    {% for r in related %}
+                    <div class="card">
+                        <div class="img-container">
+                            <img src="{{ r.image }}" alt="{{ r.title }}">
+                        </div>
+                        <div class="content">
+                            <h2><a href="/{{ r.slug }}">{{ r.title }}</a></h2>
+                            <div class="meta">{{ r.category }} • {{ ago(r.pub_date) }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <footer>© 2026 NaijaBuzz • blog.naijabuzz.com • Auto-updated every 15 minutes</footer>
+    </body>
+    </html>
+    """
+    return render_template_string(html, post=post, related=related, ago=ago, page_title=page_title, page_desc=page_desc, featured_img=featured_img, categories=CATEGORIES, selected=post.category.lower())
 
 @app.route('/cron')
 @app.route('/generate')
@@ -281,8 +426,25 @@ def cron():
                         summary = e.get('summary') or e.get('description') or ''
                         excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..."
                         title = e.title
-                        post = Post(title=title, excerpt=excerpt, link=e.link, unique_hash=h,
-                                    image=img, category=cat, pub_date=parse_date(getattr(e, 'published', None)))
+                        # Fetch full
+                        try:
+                            article = Article(e.link)
+                            article.download()
+                            article.parse()
+                            full_text = article.text
+                        except:
+                            full_text = excerpt
+                        # Rewrite
+                        full_content = rewrite_article(full_text, title, cat)
+                        # Slug
+                        base_slug = slugify(title)
+                        slug = base_slug
+                        count = 1
+                        while Post.query.filter_by(slug=slug).first():
+                            slug = f"{base_slug}-{count}"
+                            count += 1
+                        post = Post(title=title, excerpt=excerpt, full_content=full_content, link=e.link, unique_hash=h,
+                                    slug=slug, image=img, category=cat, pub_date=parse_date(getattr(e, 'published', None)))
                         db.session.add(post)
                         added += 1
                     db.session.commit()
@@ -304,8 +466,13 @@ def sitemap():
         if key == 'all': continue
         cat_url = f"{base_url}/?cat={urllib.parse.quote(key)}"
         xml += f'  <url>\n    <loc>{cat_url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-    for page in range(1, 101):
-        xml += f'  <url>\n    <loc>{base_url}/?page={page}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
+    total_posts = Post.query.count()
+    pages = (total_posts // 20) + 1 if total_posts else 1
+    for p in range(1, pages + 1):
+        xml += f'  <url>\n    <loc>{base_url}/?page={p}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
+    posts = Post.query.all()
+    for post in posts:
+        xml += f'  <url>\n    <loc>{base_url}/{post.slug}</loc>\n    <lastmod>{post.pub_date.isoformat()}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
