@@ -1,8 +1,9 @@
-Flask==3.1.2
-Flask-SQLAlchemy==3.1.1
-feedparser==6.0.12
-requests==2.32.3
-beautifulsoup4==4.14.2
-python-dateutil==2.9.0.post0
-gunicorn==23.0.0
-psycopg2-binary==2.9.11
+flask
+flask-sqlalchemy
+feedparser
+beautifulsoup4
+python-dateutil
+requests
+newspaper3k          # for full article extraction
+openai               # OpenAI-compatible client for xAI API
+python-slugify       # for generating clean URL slugs
