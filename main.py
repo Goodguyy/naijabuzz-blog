@@ -9,6 +9,7 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
+import time
 
 app = Flask(__name__)
 
@@ -51,7 +52,6 @@ CATEGORIES = {
     "world": "World"
 }
 
-# Full list of 60+ feeds - no reduction
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -126,8 +126,6 @@ def get_image(entry):
             if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
     content = entry.get('summary') or e.get('description') or ''
-    if not content and hasattr(entry, 'content'):
-        content = entry.content[0].get('value', '') if entry.content else ''
     if content:
         soup = BeautifulSoup(content, 'html.parser')
         img = soup.find('img')
@@ -163,9 +161,9 @@ def rewrite_article(full_text, title, category):
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # Current, fast model
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": f"""
-                Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
+                Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
                 Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
                 Aim for 300–500 words. Do NOT copy original sentences directly.
@@ -180,8 +178,11 @@ def rewrite_article(full_text, title, category):
         if rewritten:
             return rewritten
     except Exception as e:
-        print(f"Groq error for '{title}': {str(e)[:200]}")
-    return full_text[:800] + "..."
+        err = str(e)
+        print(f"Groq error for '{title}': {err[:200]}")
+        if "429" in err:
+            print("Rate limit - skipping rewrite")
+        return full_text[:800] + "..."
 
 @app.route('/')
 def index():
