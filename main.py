@@ -51,6 +51,7 @@ CATEGORIES = {
     "world": "World"
 }
 
+# Full list of feeds (~60+) - no reduction
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -64,7 +65,8 @@ FEEDS = [
     ("Naija News", "https://dailypost.ng/feed/"),
     ("Naija News", "https://blueprint.ng/feed/"),
     ("Naija News", "https://newtelegraphng.com/feed"),
-    ("Naija News", "https://www.legit.ng/rss"),
+    ("Naija News", "https://www.legit.ng/rss/all.rss"),
+    ("Naija News", "https://www.thecable.ng/feed"),
 
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
@@ -114,6 +116,7 @@ FEEDS = [
 ]
 
 def get_image(entry):
+    # Prioritize real images from news sources
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -162,7 +165,7 @@ def rewrite_article(full_text, title, category):
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.1-8b-instant",  # Fast, current model
             messages=[{"role": "user", "content": f"""
                 Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
@@ -179,11 +182,8 @@ def rewrite_article(full_text, title, category):
         if rewritten:
             return rewritten
     except Exception as e:
-        err = str(e)
-        print(f"Groq error for '{title}': {err[:200]}")
-        if "429" in err:
-            print("Rate limit - skipping rewrite")
-        return full_text[:800] + "..."
+        print(f"Groq error for '{title}': {str(e)[:200]}")
+    return full_text[:800] + "..."
 
 @app.route('/')
 def index():
@@ -230,6 +230,9 @@ def index():
         <meta property="og:url" content="https://blog.naijabuzz.com">
         <meta property="og:type" content="website">
         <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ page_title }}">
+        <meta name="twitter:description" content="{{ page_desc }}">
+        <meta name="twitter:image" content="{{ featured_img }}">
         <style>
             :root {
                 --primary: #00d4aa;
@@ -265,12 +268,14 @@ def index():
                 top: 4.5rem;
                 z-index: 999;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+                border-bottom: 1px solid #e2e8f0;
             }
             .tabs {
                 display: flex;
                 gap: 0.75rem;
                 padding: 0 1rem;
                 white-space: nowrap;
+                justify-content: center;
             }
             .tab {
                 padding: 0.6rem 1.25rem;
@@ -281,6 +286,8 @@ def index():
                 font-size: 0.95rem;
                 text-decoration: none;
                 transition: all 0.3s ease;
+                min-width: 80px;
+                text-align: center;
             }
             .tab:hover, .tab.active {
                 background: var(--primary);
@@ -394,8 +401,25 @@ def index():
             }
             @media (max-width: 768px) {
                 h1 { font-size: 2rem; }
-                .tabs { flex-wrap: wrap; justify-content: center; }
-                .tab { padding: 0.5rem 1rem; font-size: 0.9rem; }
+                .tabs-container {
+                    padding: 0.5rem 0;
+                }
+                .tabs {
+                    flex-wrap: wrap;
+                    justify-content: flex-start;
+                    gap: 0.5rem;
+                    padding: 0 0.5rem;
+                }
+                .tab {
+                    padding: 0.5rem 1rem;
+                    font-size: 0.9rem;
+                    min-width: auto;
+                }
+                .grid {
+                    grid-template-columns: 1fr;
+                }
+                .card h2 { font-size: 1.1rem; }
+                .single-container { padding: 0 0.75rem; }
             }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
