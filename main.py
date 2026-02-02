@@ -7,8 +7,8 @@ from dateutil import parser as date_parser
 import urllib.parse
 import requests
 from newspaper import Article
-from openai import OpenAI
 from slugify import slugify
+import google.generativeai as genai
 
 app = Flask(__name__)
 
@@ -18,7 +18,7 @@ if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}  # Helps with connection issues
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
 
 class Post(db.Model):
@@ -43,7 +43,6 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# 55+ reliable, verified feeds (removed any potentially flaky ones)
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -79,7 +78,7 @@ FEEDS = [
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
-    ("Sports", "https://blueprint.ng/sports/feed"),
+    ("Sports", "https://blueprint.ng/sports/feed/"),
 
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
@@ -107,7 +106,6 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    # Maximized for real article images (tested on all major Nigerian sources)
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -138,25 +136,41 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# xAI setup (automatic rewriting)
-ai_client = OpenAI(
-    api_key=os.environ.get('XAI_API_KEY'),
-    base_url="https://api.x.ai/v1"
-) if os.environ.get('XAI_API_KEY') else None
+# Gemini API setup (free tier)
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("Gemini API configured successfully")
+else:
+    print("Warning: No GEMINI_API_KEY set - using fallback short excerpts")
 
 def rewrite_article(full_text, title, category):
-    if not ai_client:
-        return full_text  # Fallback to original text if no key
-    prompt = f"Rewrite this article in original words for Naija audience, add local context. Keep factual, engaging, 500-800 words: {full_text[:8000]}"
+    if not GEMINI_API_KEY or not full_text.strip():
+        return full_text
+
     try:
-        response = ai_client.chat.completions.create(
-            model="grok-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1200
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return full_text  # Fallback
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        prompt = f"""
+        Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
+        Include relevant Naija context, implications, or angles where natural.
+        Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs, headings if useful), conclusion.
+        Aim for 500–800 words. Do NOT copy original sentences directly.
+        Original title: {title}
+        Category: {category}
+        Content: {full_text[:8000]}
+        """
+
+        response = model.generate_content(prompt)
+        rewritten = response.text.strip()
+
+        if not rewritten:
+            return full_text
+
+        return rewritten
+    except Exception as e:
+        print(f"Gemini rewrite error: {str(e)[:200]}")
+        return full_text  # fallback
 
 @app.route('/')
 def index():
@@ -183,7 +197,6 @@ def index():
         if diff < timedelta(days=7): return f"{diff.days}d ago"
         return dt.strftime("%b %d")
 
-    # Dynamic SEO
     page_title = f"{CATEGORIES.get(selected, 'All News')} - NaijaBuzz"
     page_desc = "Latest Nigerian news, football, gossip & updates - AI-curated for you."
     featured_img = posts[0].image if posts else "https://via.placeholder.com/800x450?text=NaijaBuzz"
@@ -426,7 +439,6 @@ def cron():
                         summary = e.get('summary') or e.get('description') or ''
                         excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..."
                         title = e.title
-                        # Fetch full
                         try:
                             article = Article(e.link)
                             article.download()
@@ -434,9 +446,7 @@ def cron():
                             full_text = article.text
                         except:
                             full_text = excerpt
-                        # Rewrite
                         full_content = rewrite_article(full_text, title, cat)
-                        # Slug
                         base_slug = slugify(title)
                         slug = base_slug
                         count = 1
