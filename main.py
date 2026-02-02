@@ -1,6 +1,6 @@
 from flask import Flask, render_template_string, request, abort
 from flask_sqlalchemy import SQLAlchemy
-import os, feedparser, random, hashlib
+import os, feedparser, random, hashlib, time
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
@@ -122,7 +122,7 @@ def get_image(entry):
         for e in entry.enclosures:
             if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
-    content = entry.get('summary') or entry.get('description') or ''
+    content = entry.get('summary') or e.get('description') or ''
     if not content and hasattr(entry, 'content'):
         content = entry.content[0].get('value', '') if entry.content else ''
     if content:
@@ -158,29 +158,34 @@ def rewrite_article(full_text, title, category):
     if not groq_client or not full_text.strip():
         return full_text
 
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": f"""
-                Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
-                Include relevant Naija context, implications, or angles where natural.
-                Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs, headings if useful), conclusion.
-                Aim for 500–800 words. Do NOT copy original sentences directly.
-                Original title: {title}
-                Category: {category}
-                Content: {full_text[:5000]}
-            """}],
-            max_tokens=800,
-            temperature=0.7
-        )
-        rewritten = response.choices[0].message.content.strip()
-        if not rewritten:
-            return full_text
-        del full_text
-        return rewritten
-    except Exception as e:
-        print(f"Groq rewrite error for '{title}': {str(e)[:200]}")
-        return full_text
+    for attempt in range(2):  # Retry once on rate limit
+        try:
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": f"""
+                    Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
+                    Include relevant Naija context, implications, or angles where natural.
+                    Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs, headings if useful), conclusion.
+                    Aim for 500–800 words. Do NOT copy original sentences directly.
+                    Original title: {title}
+                    Category: {category}
+                    Content: {full_text[:5000]}
+                """}],
+                max_tokens=800,
+                temperature=0.7
+            )
+            rewritten = response.choices[0].message.content.strip()
+            if not rewritten:
+                return full_text
+            del full_text
+            return rewritten
+        except Exception as e:
+            err_str = str(e)
+            print(f"Groq error (attempt {attempt+1}) for '{title}': {err_str[:200]}")
+            if "429" in err_str or "rate limit" in err_str.lower():
+                time.sleep(60)  # Wait 1 min on rate limit
+                continue
+            return full_text  # Other errors → fallback
 
 @app.route('/')
 def index():
@@ -440,14 +445,14 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            print(f"Processing first 10 feeds (safe mode)...")
-            for cat, url in FEEDS[:10]:  # Reduced to 10 feeds
+            print(f"Processing first 6 feeds (ultra-safe mode)...")
+            for cat, url in FEEDS[:6]:  # Ultra low for testing
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
                         print(f"No entries from {url}")
                         continue
-                    for e in f.entries[:3]:  # 3 per feed
+                    for e in f.entries[:2]:  # 2 per feed
                         try:
                             h = hashlib.md5((e.link + e.title).encode()).hexdigest()
                             if Post.query.filter_by(unique_hash=h).first():
@@ -458,7 +463,7 @@ def cron():
                             title = e.title or "Untitled"
                             full_text = excerpt
                             try:
-                                article = Article(e.link, fetch_images=False)  # Disable image fetch to save memory
+                                article = Article(e.link, fetch_images=False, request_timeout=10)
                                 article.download()
                                 article.parse()
                                 full_text = article.text or excerpt
@@ -466,12 +471,13 @@ def cron():
                                 print(f"Article fetch skipped for '{title}': {ex}")
                             full_content = rewrite_article(full_text, title, cat)
                             del full_text
-                            base_slug = slugify(title)
+                            base_slug = slugify(title)[:180]  # Prevent long slugs
                             slug = base_slug
                             count = 1
                             while Post.query.filter_by(slug=slug).first():
                                 slug = f"{base_slug}-{count}"
                                 count += 1
+                                if count > 10: break  # Safety
                             post = Post(
                                 title=title,
                                 excerpt=excerpt,
@@ -487,11 +493,15 @@ def cron():
                             added += 1
                         except Exception as item_ex:
                             errors.append(f"Item error in {cat} ({url}): {str(item_ex)[:150]}")
-                            continue  # Skip bad item, continue loop
-                    db.session.commit()
+                            continue
+                    try:
+                        db.session.commit()
+                    except Exception as commit_ex:
+                        errors.append(f"Commit error: {str(commit_ex)[:150]}")
+                        db.session.rollback()
                 except Exception as feed_ex:
                     errors.append(f"Feed error {url}: {str(feed_ex)[:150]}")
-                    continue  # Skip bad feed
+                    continue
     except Exception as main_ex:
         errors.append(f"Main cron error: {str(main_ex)}")
         print(f"Main cron error: {str(main_ex)}")
