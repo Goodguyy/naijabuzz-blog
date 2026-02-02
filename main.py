@@ -43,7 +43,6 @@ CATEGORIES = {
     "education": "Education", "tech": "Tech", "viral": "Viral", "world": "World"
 }
 
-# Your expanded feeds (unchanged)
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -143,7 +142,7 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Groq API setup (OpenAI-compatible, fast & free tier)
+# Groq API setup
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
@@ -161,7 +160,7 @@ def rewrite_article(full_text, title, category):
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # Strong Groq model for rewriting
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": f"""
                 Rewrite this article completely in your own words as an original, engaging piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
@@ -169,18 +168,19 @@ def rewrite_article(full_text, title, category):
                 Aim for 500–800 words. Do NOT copy original sentences directly.
                 Original title: {title}
                 Category: {category}
-                Content: {full_text[:8000]}
+                Content: {full_text[:6000]}  # Reduced to save memory
             """}],
-            max_tokens=1200,
+            max_tokens=800,  # Reduced to save memory & time
             temperature=0.7
         )
         rewritten = response.choices[0].message.content.strip()
         if not rewritten:
             return full_text
+        del full_text  # Free memory early
         return rewritten
     except Exception as e:
         print(f"Groq rewrite error: {str(e)[:200]}")
-        return full_text  # fallback
+        return full_text
 
 @app.route('/')
 def index():
@@ -439,14 +439,14 @@ def cron():
             try: Post.query.first()
             except: db.drop_all(); db.create_all()
             random.shuffle(FEEDS)
-            print(f"Processing all {len(FEEDS)} feeds...")
-            for cat, url in FEEDS:
+            print(f"Processing first 12 feeds (memory-safe mode)...")
+            for cat, url in FEEDS[:12]:  # Reduced from all to 12 to avoid OOM
                 try:
                     f = feedparser.parse(url)
                     if not f.entries:
                         print(f"No entries from {url}")
                         continue
-                    for e in f.entries[:6]:
+                    for e in f.entries[:4]:  # Reduced from 6 to 4 per feed
                         h = hashlib.md5((e.link + e.title).encode()).hexdigest()
                         if Post.query.filter_by(unique_hash=h).first(): continue
                         img = get_image(e)
@@ -462,6 +462,7 @@ def cron():
                             print(f"Article fetch error: {ex}")
                             full_text = excerpt
                         full_content = rewrite_article(full_text, title, cat)
+                        del full_text  # Free memory early
                         base_slug = slugify(title)
                         slug = base_slug
                         count = 1
@@ -477,7 +478,7 @@ def cron():
                     print(f"Feed error {url}: {ex}")
     except Exception as ex:
         print(f"Cron error: {ex}")
-    return f"NaijaBuzz updated! Added {added} new stories."
+    return f"NaijaBuzz updated! Added {added} new stories (memory-safe mode)."
 
 @app.route('/robots.txt')
 def robots():
