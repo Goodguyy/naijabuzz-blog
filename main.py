@@ -423,7 +423,17 @@ def index():
                 .single-container { padding: 0 0.75rem; }
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+       <!-- Help browser connect faster -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<!-- Load font without blocking the page -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" onload="this.rel='stylesheet'">
+
+<!-- Backup if JavaScript is off -->
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+</noscript>
     </head>
     <body>
         <header>
@@ -548,7 +558,17 @@ def post_detail(slug):
                 .related .card img{height:180px;}
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+        <!-- Help browser connect faster -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<!-- Load font without blocking the page -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" onload="this.rel='stylesheet'">
+
+<!-- Backup if JavaScript is off -->
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+</noscript>
     </head>
     <body>
         <header>
