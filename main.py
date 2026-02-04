@@ -127,7 +127,7 @@ def get_image(entry):
         for e in entry.enclosures:
             if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
-    content = entry.get('summary') or e.get('description') or ''
+    content = entry.get('summary') or entry.get('description') or ''
     if not content and hasattr(entry, 'content'):
         content = entry.content[0].get('value', '') if entry.content else ''
     if content:
@@ -140,7 +140,7 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
+    return None  # Return None if no image found, to allow fallback to article.top_image
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
@@ -249,7 +249,7 @@ def index():
                 line-height: 1.6;
             }
             header {
-                background: var(--dark);
+                background: linear-gradient(to bottom, var(--dark), #1e293b);
                 color: white;
                 text-align: center;
                 padding: 1.5rem 1rem;
@@ -258,8 +258,8 @@ def index():
                 z-index: 1000;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }
-            h1 { font-size: 2.5rem; font-weight: 900; margin-bottom: 0.5rem; }
-            .tagline { font-size: 1.1rem; opacity: 0.9; }
+            h1 { font-size: 2.5rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+            .tagline { font-size: 1.1rem; opacity: 0.9; font-weight: 300; }
             .tabs-container {
                 background: white;
                 padding: 0.75rem 0;
@@ -275,7 +275,6 @@ def index():
                 gap: 0.75rem;
                 padding: 0 1rem;
                 white-space: nowrap;
-                justify-content: center;
             }
             .tab {
                 padding: 0.6rem 1.25rem;
@@ -401,11 +400,13 @@ def index():
             }
             @media (max-width: 768px) {
                 h1 { font-size: 2rem; }
+                .tagline { font-size: 1rem; }
                 .tabs-container {
                     padding: 0.5rem 0;
+                    top: 4rem; /* Adjust for smaller header */
                 }
                 .tabs {
-                    flex-wrap: wrap;
+                    flex-wrap: nowrap;
                     justify-content: flex-start;
                     gap: 0.5rem;
                     padding: 0 0.5rem;
@@ -422,7 +423,7 @@ def index():
                 .single-container { padding: 0 0.75rem; }
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
@@ -519,16 +520,16 @@ def post_detail(slug):
         <style>
             :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;}
             body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;line-height:1.6;}
-            header{background:var(--dark);color:white;text-align:center;padding:1.5rem 1rem;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
-            h1{font-size:2.5rem;font-weight:900;margin-bottom:0.5rem;}
-            .tagline{font-size:1.1rem;opacity:0.9;}
+            header{background:linear-gradient(to bottom, var(--dark), #1e293b);color:white;text-align:center;padding:1.5rem 1rem;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+            h1{font-size:2.5rem;font-weight:900;margin-bottom:0.5rem;letter-spacing:-0.5px;}
+            .tagline{font-size:1.1rem;opacity:0.9;font-weight:300;}
             .tabs-container{background:white;padding:0.75rem 0;overflow-x:auto;position:sticky;top:4.5rem;z-index:999;box-shadow:0 2px 10px rgba(0,0,0,0.08);}
             .tabs{display:flex;gap:0.75rem;padding:0 1rem;white-space:nowrap;}
             .tab{padding:0.6rem 1.25rem;background:#e2e8f0;color:#334155;border-radius:9999px;font-weight:600;font-size:0.95rem;text-decoration:none;transition:all 0.3s;}
             .tab:hover,.tab.active{background:var(--primary);color:white;}
             .single-container{max-width:900px;margin:2.5rem auto;padding:0 1rem;}
-            .single-img{width:100%;max-height:500px;object-fit:contain;border-radius:1rem;margin-bottom:1.5rem;}
-            .single-meta{color:var(--primary);font-weight:700;margin-bottom:1rem;}
+            .single-img{width:100%;max-height:500px;object-fit:cover;border-radius:1rem;margin-bottom:1.5rem;object-position:center;}
+            .single-meta{color:var(--primary);font-weight:700;margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.5px;}
             .single-content{line-height:1.8;font-size:1.1rem;}
             .single-content h2, .single-content h3{margin:2rem 0 1rem;}
             .source{margin-top:2rem;font-style:italic;color:var(--gray);}
@@ -539,11 +540,15 @@ def post_detail(slug):
             footer{text-align:center;padding:3rem 1rem;background:white;color:var(--gray);font-size:0.9rem;border-top:1px solid #e2e8f0;}
             @media (max-width: 768px) {
                 h1{font-size:2rem;}
-                .tabs{flex-wrap:wrap;justify-content:center;}
+                .tagline{font-size:1rem;}
+                .tabs-container{top:4rem;}
+                .tabs{flex-wrap:nowrap;justify-content:flex-start;gap:0.5rem;padding:0 0.5rem;}
                 .tab{font-size:0.9rem;padding:0.5rem 1rem;}
+                .related-grid{grid-template-columns:1fr;}
+                .related .card img{height:180px;}
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
@@ -624,9 +629,17 @@ def cron():
                                 article.download()
                                 article.parse()
                                 full_text = article.text or excerpt
+                                if not img and article.top_image:
+                                    img = article.top_image
+                                    if img.startswith('//'):
+                                        img = 'https:' + img
+                                    elif not img.startswith('http'):
+                                        img = urllib.parse.urljoin(e.link, img)
                             except Exception as ex:
                                 print(f"Article fetch skipped for '{title}': {ex}")
                                 full_text = excerpt
+                            if not img:
+                                img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
                             full_content = rewrite_article(full_text, title, cat)
                             del full_text
                             base_slug = slugify(title)[:180]
