@@ -13,7 +13,7 @@ from openai import OpenAI
 app = Flask(__name__)
 
 # Database
-db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
+db_uri = os.environ.get('DATABASE_URL') or 'sqlite:////data/posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
