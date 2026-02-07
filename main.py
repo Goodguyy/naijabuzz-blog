@@ -147,7 +147,12 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Groq primary
+# --- AI Clients Setup ---
+import google.generativeai as genai
+import requests
+import json
+
+# Groq (fastest primary)
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
@@ -157,32 +162,95 @@ groq_client = OpenAI(
 if GROQ_API_KEY:
     print("Groq API configured")
 else:
-    print("Warning: No GROQ_API_KEY - using short excerpts")
+    print("Warning: No GROQ_API_KEY")
+
+# Gemini (Google Generative AI - free tier)
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+gemini_model = None
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash')  # fast, free tier
+        print("Gemini API configured")
+    except Exception as e:
+        print(f"Gemini setup failed: {str(e)[:200]}")
+
+# Cloudflare Workers AI
+CLOUDFLARE_AI_TOKEN = os.environ.get('CLOUDFLARE_AI_TOKEN')
+CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+cloudflare_enabled = bool(CLOUDFLARE_AI_TOKEN and CLOUDFLARE_ACCOUNT_ID)
+
+if cloudflare_enabled:
+    print("Cloudflare Workers AI configured")
+else:
+    print("Warning: Missing Cloudflare AI token or account ID")
 
 def rewrite_article(full_text, title, category):
-    if not groq_client or not full_text.strip():
+    if not full_text.strip():
         return full_text
 
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # Fast, current model
-            messages=[{"role": "user", "content": f"""
-                Rewrite this article completely in your own words as an original piece for Nigerian readers.
-                Include relevant Naija context, implications, or angles where natural.
-                Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
-                Aim for 300–500 words. Do NOT copy original sentences directly.
-                Original title: {title}
-                Category: {category}
-                Content: {full_text[:3000]}
-            """}],
-            max_tokens=500,
-            temperature=0.7
-        )
-        rewritten = response.choices[0].message.content.strip()
-        if rewritten:
-            return rewritten
-    except Exception as e:
-        print(f"Groq error for '{title}': {str(e)[:200]}")
+    prompt = f"""
+        Rewrite this article completely in your own words as an original piece for Nigerian readers.
+        Include relevant Naija context, implications, or angles where natural.
+        Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
+        Aim for 300–500 words. Do NOT copy original sentences directly.
+        Original title: {title}
+        Category: {category}
+        Content: {full_text[:3000]}
+    """.strip()
+
+    # 1. Try Groq first
+    if groq_client:
+        try:
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=500,
+                temperature=0.7
+            )
+            rewritten = response.choices[0].message.content.strip()
+            if rewritten:
+                print(f"Rewritten with Groq for '{title}'")
+                return rewritten
+        except Exception as e:
+            print(f"Groq error for '{title}': {str(e)[:200]}")
+
+    # 2. Fallback to Gemini
+    if gemini_model:
+        try:
+            response = gemini_model.generate_content(prompt)
+            rewritten = response.text.strip()
+            if rewritten:
+                print(f"Rewritten with Gemini for '{title}'")
+                return rewritten
+        except Exception as e:
+            print(f"Gemini error for '{title}': {str(e)[:200]}")
+
+    # 3. Fallback to Cloudflare Workers AI
+    if cloudflare_enabled:
+        try:
+            url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct"
+            headers = {
+                "Authorization": f"Bearer {CLOUDFLARE_AI_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.7
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            rewritten = data.get("result", {}).get("response", "").strip()
+            if rewritten:
+                print(f"Rewritten with Cloudflare for '{title}'")
+                return rewritten
+        except Exception as e:
+            print(f"Cloudflare error for '{title}': {str(e)[:200]}")
+
+    # Ultimate fallback
+    print(f"All AI APIs failed for '{title}' - using short excerpt")
     return full_text[:800] + "..."
 
 @app.route('/')
