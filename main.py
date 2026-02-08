@@ -9,7 +9,6 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
-import google.generativeai as genai  # Added for Gemini fallback
 
 app = Flask(__name__)
 
@@ -117,6 +116,7 @@ FEEDS = [
 ]
 
 def get_image(entry):
+    # Prioritize real images from news sources
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -140,7 +140,7 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return None
+    return None  # Return None if no image found, to allow fallback to article.top_image
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
@@ -154,55 +154,19 @@ groq_client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 ) if GROQ_API_KEY else None
 
-# Gemini fallback (Google Generative AI)
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-gemini_model = None
-if GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash')  # fast & capable model
-        print("Gemini API configured as fallback")
-    except Exception as e:
-        print(f"Failed to configure Gemini: {e}")
-else:
-    print("Warning: No GEMINI_API_KEY - no Gemini fallback available")
-
 if GROQ_API_KEY:
     print("Groq API configured")
 else:
     print("Warning: No GROQ_API_KEY - using short excerpts")
 
 def rewrite_article(full_text, title, category):
-    if not full_text.strip():
+    if not groq_client or not full_text.strip():
         return full_text
 
-    # Try Groq first
-    if groq_client:
-        try:
-            response = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": f"""
-                    Rewrite this article completely in your own words as an original piece for Nigerian readers.
-                    Include relevant Naija context, implications, or angles where natural.
-                    Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
-                    Aim for 300–500 words. Do NOT copy original sentences directly.
-                    Original title: {title}
-                    Category: {category}
-                    Content: {full_text[:3000]}
-                """}],
-                max_tokens=500,
-                temperature=0.7
-            )
-            rewritten = response.choices[0].message.content.strip()
-            if rewritten:
-                return rewritten
-        except Exception as groq_err:
-            print(f"Groq error for '{title}': {str(groq_err)[:200]}")
-
-    # Fallback to Gemini if Groq failed or not available
-    if gemini_model:
-        try:
-            prompt = f"""
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Fast, current model
+            messages=[{"role": "user", "content": f"""
                 Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
                 Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
@@ -210,15 +174,15 @@ def rewrite_article(full_text, title, category):
                 Original title: {title}
                 Category: {category}
                 Content: {full_text[:3000]}
-            """
-            response = gemini_model.generate_content(prompt)
-            rewritten = response.text.strip()
-            if rewritten:
-                return rewritten
-        except Exception as gemini_err:
-            print(f"Gemini error for '{title}': {str(gemini_err)[:200]}")
-
-    # Ultimate fallback: short excerpt
+            """}],
+            max_tokens=500,
+            temperature=0.7
+        )
+        rewritten = response.choices[0].message.content.strip()
+        if rewritten:
+            return rewritten
+    except Exception as e:
+        print(f"Groq error for '{title}': {str(e)[:200]}")
     return full_text[:800] + "..."
 
 @app.route('/')
