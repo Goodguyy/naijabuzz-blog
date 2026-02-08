@@ -1,5 +1,6 @@
 flask
-flask_sqlalchemy
+flask-sqlalchemy
+flask-caching
 feedparser
 beautifulsoup4
 python-dateutil
@@ -10,5 +11,4 @@ lxml_html_clean
 gunicorn
 openai
 google-generativeai
-flask-caching
-redis
+redis                    # only if you're using Redis caching
