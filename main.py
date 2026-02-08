@@ -1,5 +1,6 @@
 from flask import Flask, render_template_string, request, abort
 from flask_sqlalchemy import SQLAlchemy
+from flask_caching import Cache
 import os, feedparser, random, hashlib
 from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
@@ -20,6 +21,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
+
+# Caching (SimpleCache = in-memory; easy & fast for starters; switch to 'RedisCache' later if scaling)
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,7 +55,7 @@ CATEGORIES = {
     "world": "World"
 }
 
-# Full list of feeds (~60+) - no reduction
+# Full list of feeds (~60+) - unchanged
 FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
@@ -116,7 +120,7 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    # Prioritize real images from news sources
+    # unchanged
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -140,14 +144,14 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return None  # Return None if no image found, to allow fallback to article.top_image
+    return None
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Groq primary
+# Groq primary - unchanged
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
@@ -160,12 +164,13 @@ else:
     print("Warning: No GROQ_API_KEY - using short excerpts")
 
 def rewrite_article(full_text, title, category):
+    # unchanged
     if not groq_client or not full_text.strip():
         return full_text
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # Fast, current model
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": f"""
                 Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
@@ -186,6 +191,7 @@ def rewrite_article(full_text, title, category):
     return full_text[:800] + "..."
 
 @app.route('/')
+@cache.cached(timeout=300, query_string=True)
 def index():
     init_db()
     selected = request.args.get('cat', 'all').lower()
@@ -196,10 +202,9 @@ def index():
     if selected != 'all':
         query = query.filter(Post.category.ilike(f"%{selected}%"))
 
-    posts = query.offset((page - 1) * per_page).limit(per_page + 1).all()
-    has_next = len(posts) > per_page
-    if has_next:
-        posts = posts[:-1]
+    pag_obj = query.paginate(page=page, per_page=per_page, error_out=False)
+    posts = pag_obj.items
+    has_next = pag_obj.has_next
 
     def ago(dt):
         if not dt: return "Just now"
@@ -233,6 +238,10 @@ def index():
         <meta name="twitter:title" content="{{ page_title }}">
         <meta name="twitter:description" content="{{ page_desc }}">
         <meta name="twitter:image" content="{{ featured_img }}">
+        <meta name="keywords" content="naija news, nigerian gossip, football updates, entertainment news, tech news nigeria">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
         <style>
             :root {
                 --primary: #00d4aa;
@@ -247,6 +256,7 @@ def index():
                 background: var(--light);
                 color: #1e293b;
                 line-height: 1.6;
+                font-size: 16px;
             }
             header {
                 background: linear-gradient(to bottom, var(--dark), #1e293b);
@@ -277,7 +287,7 @@ def index():
                 white-space: nowrap;
             }
             .tab {
-                padding: 0.6rem 1.25rem;
+                padding: 0.7rem 1.4rem;
                 background: #e2e8f0;
                 color: #334155;
                 border-radius: 9999px;
@@ -285,8 +295,12 @@ def index():
                 font-size: 0.95rem;
                 text-decoration: none;
                 transition: all 0.3s ease;
-                min-width: 80px;
+                min-width: 90px;
                 text-align: center;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             .tab:hover, .tab.active {
                 background: var(--primary);
@@ -359,11 +373,13 @@ def index():
             .readmore {
                 background: var(--primary);
                 color: white;
-                padding: 0.6rem 1.25rem;
+                padding: 0.7rem 1.4rem;
                 border-radius: 9999px;
                 text-decoration: none;
                 font-weight: 700;
-                display: inline-block;
+                display: inline-flex;
+                align-items: center;
+                min-height: 44px;
                 transition: all 0.3s ease;
             }
             .readmore:hover {
@@ -378,12 +394,15 @@ def index():
                 flex-wrap: wrap;
             }
             .page-link {
-                padding: 0.6rem 1.25rem;
+                padding: 0.7rem 1.4rem;
                 background: #e2e8f0;
                 color: #334155;
                 border-radius: 9999px;
                 text-decoration: none;
                 font-weight: 600;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
                 transition: all 0.3s ease;
             }
             .page-link:hover, .page-link.active {
@@ -399,31 +418,17 @@ def index():
                 border-top: 1px solid #e2e8f0;
             }
             @media (max-width: 768px) {
-                h1 { font-size: 2rem; }
+                h1 { font-size: 2.2rem; }
                 .tagline { font-size: 1rem; }
-                .tabs-container {
-                    padding: 0.5rem 0;
-                    top: 4rem; /* Adjust for smaller header */
-                }
-                .tabs {
-                    flex-wrap: nowrap;
-                    justify-content: flex-start;
-                    gap: 0.5rem;
-                    padding: 0 0.5rem;
-                }
-                .tab {
-                    padding: 0.5rem 1rem;
-                    font-size: 0.9rem;
-                    min-width: auto;
-                }
-                .grid {
-                    grid-template-columns: 1fr;
-                }
-                .card h2 { font-size: 1.1rem; }
+                .tabs-container { top: 4rem; padding: 0.5rem 0; }
+                .tabs { gap: 0.5rem; padding: 0 0.5rem; }
+                .tab { font-size: 0.9rem; padding: 0.6rem 1.2rem; min-width: auto; }
+                .grid { grid-template-columns: 1fr; }
+                .img-container { height: 220px; }
+                .card h2 { font-size: 1.3rem; line-height: 1.45; }
                 .single-container { padding: 0 0.75rem; }
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
@@ -445,7 +450,7 @@ def index():
                     {% for p in posts %}
                     <div class="card">
                         <div class="img-container">
-                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title }}">
+                            <img loading="lazy" src="{{ p.image }}" alt="{{ p.title | e }}" width="400" height="225" style="aspect-ratio:16/9;">
                         </div>
                         <div class="content">
                             <h2><a href="/{{ p.slug }}">{{ p.title }}</a></h2>
@@ -481,6 +486,7 @@ def index():
                                   ago=ago, page=page, has_next=has_next, page_title=page_title, page_desc=page_desc, featured_img=featured_img)
 
 @app.route('/<slug>')
+@cache.cached(timeout=1800, key_prefix=lambda: f"post_{request.view_args.get('slug')}")
 def post_detail(slug):
     post = Post.query.filter_by(slug=slug).first()
     if not post:
@@ -517,15 +523,31 @@ def post_detail(slug):
         <meta property="og:url" content="https://blog.naijabuzz.com/{{ post.slug }}">
         <meta property="og:type" content="article">
         <meta name="twitter:card" content="summary_large_image">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "NewsArticle",
+          "headline": "{{ post.title | e }}",
+          "image": "{{ featured_img }}",
+          "datePublished": "{{ post.pub_date.isoformat() }}",
+          "dateModified": "{{ post.pub_date.isoformat() }}",
+          "author": {"@type": "Organization", "name": "NaijaBuzz"},
+          "publisher": {"@type": "Organization", "name": "NaijaBuzz"},
+          "description": "{{ post.excerpt | striptags | e | safe }}"
+        }
+        </script>
         <style>
             :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;}
-            body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;line-height:1.6;}
+            body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;line-height:1.6;font-size:16px;}
             header{background:linear-gradient(to bottom, var(--dark), #1e293b);color:white;text-align:center;padding:1.5rem 1rem;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
             h1{font-size:2.5rem;font-weight:900;margin-bottom:0.5rem;letter-spacing:-0.5px;}
             .tagline{font-size:1.1rem;opacity:0.9;font-weight:300;}
             .tabs-container{background:white;padding:0.75rem 0;overflow-x:auto;position:sticky;top:4.5rem;z-index:999;box-shadow:0 2px 10px rgba(0,0,0,0.08);}
             .tabs{display:flex;gap:0.75rem;padding:0 1rem;white-space:nowrap;}
-            .tab{padding:0.6rem 1.25rem;background:#e2e8f0;color:#334155;border-radius:9999px;font-weight:600;font-size:0.95rem;text-decoration:none;transition:all 0.3s;}
+            .tab{padding:0.7rem 1.4rem;background:#e2e8f0;color:#334155;border-radius:9999px;font-weight:600;font-size:0.95rem;text-decoration:none;transition:all 0.3s;min-height:44px;display:flex;align-items:center;justify-content:center;}
             .tab:hover,.tab.active{background:var(--primary);color:white;}
             .single-container{max-width:900px;margin:2.5rem auto;padding:0 1rem;}
             .single-img{width:100%;max-height:500px;object-fit:cover;border-radius:1rem;margin-bottom:1.5rem;object-position:center;}
@@ -539,16 +561,15 @@ def post_detail(slug):
             .related .card img{width:100%;height:150px;object-fit:cover;object-position:center;border-radius:12px 12px 0 0;}
             footer{text-align:center;padding:3rem 1rem;background:white;color:var(--gray);font-size:0.9rem;border-top:1px solid #e2e8f0;}
             @media (max-width: 768px) {
-                h1{font-size:2rem;}
+                h1{font-size:2.2rem;}
                 .tagline{font-size:1rem;}
                 .tabs-container{top:4rem;}
                 .tabs{flex-wrap:nowrap;justify-content:flex-start;gap:0.5rem;padding:0 0.5rem;}
-                .tab{font-size:0.9rem;padding:0.5rem 1rem;}
+                .tab{font-size:0.9rem;padding:0.6rem 1.2rem;}
                 .related-grid{grid-template-columns:1fr;}
                 .related .card img{height:180px;}
             }
         </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
@@ -567,7 +588,7 @@ def post_detail(slug):
         <div class="single-container">
             <h1>{{ post.title }}</h1>
             <div class="single-meta">{{ post.category }} • {{ ago(post.pub_date) }}</div>
-            <img loading="lazy" src="{{ post.image }}" alt="{{ post.title }}" class="single-img">
+            <img loading="lazy" src="{{ post.image }}" alt="{{ post.title | e }}" width="800" height="450" style="aspect-ratio:16/9;" class="single-img">
             <div class="single-content">{{ post.full_content | safe }}</div>
             <div class="source">Source: <a href="{{ post.link }}" target="_blank" rel="noopener nofollow">Original Article</a>. AI-enhanced version.</div>
             <div class="related">
@@ -576,7 +597,7 @@ def post_detail(slug):
                     {% for r in related %}
                     <div class="card">
                         <div class="img-container">
-                            <img loading="lazy" src="{{ r.image }}" alt="{{ r.title }}">
+                            <img loading="lazy" src="{{ r.image }}" alt="{{ r.title | e }}" width="300" height="169" style="aspect-ratio:16/9;">
                         </div>
                         <div class="content">
                             <h2><a href="/{{ r.slug }}">{{ r.title }}</a></h2>
@@ -597,6 +618,7 @@ def post_detail(slug):
 @app.route('/cron')
 @app.route('/generate')
 def cron():
+    # unchanged
     init_db()
     added = 0
     skipped = 0
@@ -694,7 +716,7 @@ def sitemap():
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
     # Homepage
-    xml += f'  <url>\n    <loc>{base_url}/</loc>\n    <changefreq>hourly</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
+    xml += f'  <url>\n    <loc>{base_url}/</loc>\n    <lastmod>{datetime.now(timezone.utc).strftime("%Y-%m-%d")}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
 
     # Category pages
     for key in CATEGORIES.keys():
@@ -702,16 +724,16 @@ def sitemap():
         cat_url = f"{base_url}/?cat={urllib.parse.quote(key)}"
         xml += f'  <url>\n    <loc>{cat_url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
 
-    # Pagination pages (limit to 100 to keep file reasonable)
+    # Pagination pages (limit to 100)
     total_posts = Post.query.count()
     pages = (total_posts // 20) + 1 if total_posts else 1
     for p in range(1, min(pages + 1, 101)):
         xml += f'  <url>\n    <loc>{base_url}/?page={p}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
 
-    # Individual posts – use only date (Google-friendly)
+    # Individual posts
     posts = Post.query.all()
     for post in posts:
-        lastmod = post.pub_date.strftime('%Y-%m-%d')  # Only YYYY-MM-DD
+        lastmod = post.pub_date.strftime('%Y-%m-%d')
         xml += f'  <url>\n    <loc>{base_url}/{post.slug}</loc>\n    <lastmod>{lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
 
     xml += '</urlset>'
