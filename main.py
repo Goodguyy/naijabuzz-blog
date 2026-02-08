@@ -22,8 +22,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
 
-# Caching (SimpleCache = in-memory; easy & fast for starters; switch to 'RedisCache' later if scaling)
-cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
+# Redis caching - using CACHE_REDIS_URL from environment variable (recommended)
+# Fallback to localhost for local dev
+cache = Cache(app, config={
+    'CACHE_TYPE': 'RedisCache',
+    'CACHE_REDIS_URL': os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    'CACHE_DEFAULT_TIMEOUT': 300,               # 5 minutes default
+    'CACHE_KEY_PREFIX': 'naijabuzz_',           # Helps avoid collisions
+    # Optional extras if needed:
+    # 'CACHE_OPTIONS': {'socket_timeout': 5, 'socket_connect_timeout': 5}
+})
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -120,7 +128,6 @@ FEEDS = [
 ]
 
 def get_image(entry):
-    # unchanged
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -151,7 +158,7 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# Groq primary - unchanged
+# Groq primary
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
@@ -164,7 +171,6 @@ else:
     print("Warning: No GROQ_API_KEY - using short excerpts")
 
 def rewrite_article(full_text, title, category):
-    # unchanged
     if not groq_client or not full_text.strip():
         return full_text
 
@@ -618,7 +624,6 @@ def post_detail(slug):
 @app.route('/cron')
 @app.route('/generate')
 def cron():
-    # unchanged
     init_db()
     added = 0
     skipped = 0
@@ -715,22 +720,18 @@ def sitemap():
     base_url = "https://blog.naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
-    # Homepage
     xml += f'  <url>\n    <loc>{base_url}/</loc>\n    <lastmod>{datetime.now(timezone.utc).strftime("%Y-%m-%d")}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
 
-    # Category pages
     for key in CATEGORIES.keys():
         if key == 'all': continue
         cat_url = f"{base_url}/?cat={urllib.parse.quote(key)}"
         xml += f'  <url>\n    <loc>{cat_url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
 
-    # Pagination pages (limit to 100)
     total_posts = Post.query.count()
     pages = (total_posts // 20) + 1 if total_posts else 1
     for p in range(1, min(pages + 1, 101)):
         xml += f'  <url>\n    <loc>{base_url}/?page={p}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
 
-    # Individual posts
     posts = Post.query.all()
     for post in posts:
         lastmod = post.pub_date.strftime('%Y-%m-%d')
