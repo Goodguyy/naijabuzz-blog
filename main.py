@@ -1,6 +1,3 @@
-The best main.py for mobile and desktop
-
-
 from flask import Flask, render_template_string, request, abort
 from flask_sqlalchemy import SQLAlchemy
 import os, feedparser, random, hashlib
