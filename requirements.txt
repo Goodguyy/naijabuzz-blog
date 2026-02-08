@@ -10,3 +10,5 @@ lxml_html_clean
 gunicorn
 openai
 google-generativeai
+flask-caching
+redis
