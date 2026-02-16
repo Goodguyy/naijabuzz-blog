@@ -13,7 +13,7 @@ from sqlalchemy import exc as sa_exc
 
 app = Flask(__name__)
 
-# Database
+# Database configuration
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -52,7 +52,7 @@ CATEGORIES = {
     "world": "World"
 }
 
-FEEDS = [  # unchanged - all 60+ sources
+FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -67,7 +67,6 @@ FEEDS = [  # unchanged - all 60+ sources
     ("Naija News", "https://newtelegraphng.com/feed"),
     ("Naija News", "https://www.legit.ng/rss/all.rss"),
     ("Naija News", "https://www.thecable.ng/feed"),
-
     ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
     ("Gossip", "https://www.bellanaija.com/feed/"),
     ("Gossip", "https://www.kemifilani.ng/feed"),
@@ -75,7 +74,6 @@ FEEDS = [  # unchanged - all 60+ sources
     ("Gossip", "https://www.naijaloaded.com.ng/feed"),
     ("Gossip", "https://creebhills.com/feed"),
     ("Gossip", "https://www.informationng.com/feed"),
-
     ("Football", "https://www.goal.com/en-ng/rss"),
     ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
     ("Football", "https://www.owngoalnigeria.com/rss"),
@@ -83,32 +81,25 @@ FEEDS = [  # unchanged - all 60+ sources
     ("Football", "https://www.pulsesports.ng/rss"),
     ("Football", "https://www.completesports.com/feed/"),
     ("Football", "https://sportsration.com/feed/"),
-
     ("Sports", "https://www.vanguardngr.com/sports/feed"),
     ("Sports", "https://punchng.com/sports/feed/"),
     ("Sports", "https://www.premiumtimesng.com/sports/feed"),
     ("Sports", "https://tribuneonlineng.com/sports/feed"),
     ("Sports", "https://blueprint.ng/sports/feed/"),
-
     ("Entertainment", "https://www.pulse.ng/rss"),
     ("Entertainment", "https://notjustok.com/feed/"),
     ("Entertainment", "https://tooxclusive.com/feed/"),
     ("Entertainment", "https://www.36ng.com.ng/feed/"),
-
     ("Lifestyle", "https://www.sisiyemmie.com/feed"),
     ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
     ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
     ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
-
     ("Education", "https://myschoolgist.com/feed"),
     ("Education", "https://flashlearners.com/feed/"),
-
     ("Tech", "https://techcabal.com/feed/"),
     ("Tech", "https://technext.ng/feed"),
     ("Tech", "https://techpoint.africa/feed"),
-
     ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
-
     ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
     ("World", "http://feeds.reuters.com/Reuters/worldNews"),
     ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
@@ -244,34 +235,41 @@ def index():
             header {
                 background: linear-gradient(to bottom, var(--dark), #1e293b);
                 color: white;
-                text-align: center;
-                padding: 1.8rem 1rem;
                 position: sticky;
                 top: 0;
                 z-index: 1000;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }
-            h1 { font-size: 2.8rem; font-weight: 900; margin-bottom: 0.4rem; letter-spacing: -1px; }
-            .tagline { font-size: 1.2rem; opacity: 0.9; font-weight: 300; }
+            .header-inner {
+                text-align: center;
+                padding: 1.6rem 1rem 0.8rem;
+            }
+            h1 {
+                font-size: 2.8rem;
+                font-weight: 900;
+                margin-bottom: 0.3rem;
+                letter-spacing: -1px;
+            }
+            .tagline {
+                font-size: 1.15rem;
+                opacity: 0.9;
+                font-weight: 300;
+            }
             .tabs-container {
                 background: white;
                 padding: 0.9rem 0;
                 overflow-x: auto;
-                position: sticky;
-                top: 0;
-                z-index: 999;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.08);
                 border-bottom: 1px solid #e2e8f0;
-                transition: box-shadow 0.3s ease;
             }
             .tabs {
                 display: flex;
                 gap: 0.8rem;
                 padding: 0 1.2rem;
                 white-space: nowrap;
+                justify-content: flex-start;
             }
             .tab {
-                padding: 0.7rem 1.5rem;
+                padding: 0.7rem 1.4rem;
                 background: #e2e8f0;
                 color: #334155;
                 border-radius: 9999px;
@@ -312,7 +310,7 @@ def index():
                 height: 220px;
                 background: #1e1e1e;
                 overflow: hidden;
-                aspect-ratio: 16/9;
+                position: relative;
             }
             .card img {
                 width: 100%;
@@ -356,30 +354,34 @@ def index():
                 border-top: 1px solid #e2e8f0;
             }
             @media (max-width: 768px) {
+                .header-inner { padding: 1.2rem 1rem 0.8rem; }
                 h1 { font-size: 2.2rem; }
                 .tagline { font-size: 1.05rem; }
-                .tabs-container { padding: 0.6rem 0; }
+                .tabs-container { padding: 0.7rem 0; }
                 .tabs { gap: 0.6rem; padding: 0 0.8rem; }
-                .tab { padding: 0.6rem 1.2rem; font-size: 0.95rem; min-width: 80px; }
+                .tab { padding: 0.6rem 1.1rem; font-size: 0.95rem; min-width: 80px; }
                 .grid { grid-template-columns: 1fr; gap: 1.4rem; }
                 .container { padding: 0 1rem; }
+                .card img-container { height: 200px; }
             }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
-            <h1>NaijaBuzz</h1>
-            <div class="tagline">Fresh Naija News • Football • Gossip • Entertainment • World Updates</div>
-        </header>
-
-        <div class="tabs-container">
-            <div class="tabs">
-                {% for key, name in categories.items() %}
-                <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
-                {% endfor %}
+            <div class="header-inner">
+                <h1>NaijaBuzz</h1>
+                <div class="tagline">Fresh Naija News • Football • Gossip • Entertainment • World Updates</div>
             </div>
-        </div>
+
+            <nav class="tabs-container">
+                <div class="tabs">
+                    {% for key, name in categories.items() %}
+                    <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
+                    {% endfor %}
+                </div>
+            </nav>
+        </header>
 
         <div class="container">
             <div class="grid">
@@ -418,29 +420,6 @@ def index():
         <footer>
             © 2026 <a href="/">NaijaBuzz</a> • naijabuzz.com • Auto-updated every 15 minutes
         </footer>
-
-        <script>
-        // Live ago update
-        function updateAgo() {
-          document.querySelectorAll('.meta').forEach(meta => {
-            const text = meta.textContent;
-            if (text.includes(' ago')) {
-              // Server-side is fine, but this keeps it fresh
-            }
-          });
-        }
-        setInterval(updateAgo, 60000);
-
-        // Sticky tabs shadow
-        window.addEventListener('scroll', () => {
-          const tabs = document.querySelector('.tabs-container');
-          if (window.scrollY > 10) {
-            tabs.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
-          } else {
-            tabs.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
-          }
-        });
-        </script>
     </body>
     </html>
     """
@@ -494,24 +473,68 @@ def post_detail(slug):
             .single-img{width:100%;max-height:600px;object-fit:cover;border-radius:1.2rem;margin-bottom:1.8rem;}
             .single-meta{color:var(--primary);font-weight:700;margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.6px;}
             .single-content{line-height:1.85;font-size:1.15rem;}
+            .single-content h2, .single-content h3{margin:2.5rem 0 1.2rem;}
             .source{margin-top:2.5rem;font-style:italic;color:var(--gray);font-size:0.95rem;}
             .related{margin-top:4.5rem;}
             .related h2{margin-bottom:1.8rem;font-size:1.8rem;}
-            .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.8rem;}
+            .related-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1.8rem;
+            }
+            .related .card {
+                background: white;
+                border-radius: 1rem;
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+            }
+            .related .card:hover {
+                transform: translateY(-6px);
+                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            }
+            .related .img-container {
+                height: 180px;
+                background: #1e1e1e;
+                overflow: hidden;
+                position: relative;
+            }
+            .related .img-container img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+                max-width: 100%;
+            }
+            .related .content { padding: 1.2rem; }
+            .related .card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+            .related .meta { font-size: 0.85rem; }
             footer{text-align:center;padding:4rem 1rem;background:white;color:var(--gray);font-size:0.95rem;border-top:1px solid #e2e8f0;}
             footer a{color:var(--primary);text-decoration:none;}
             @media (max-width: 768px) {
                 h1{font-size:2.2rem;}
                 .single-container{padding:0 1rem;}
-                .related-grid{grid-template-columns:1fr;}
+                .related-grid{grid-template-columns:1fr; gap:1.4rem;}
+                .related .img-container { height: 200px; }
+                .related .card h2 { font-size: 1.2rem; }
             }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     </head>
     <body>
         <header>
-            <h1>NaijaBuzz</h1>
-            <div class="tagline">Fresh Naija News • Football • Gossip • Entertainment • World Updates</div>
+            <div class="header-inner">
+                <h1>NaijaBuzz</h1>
+                <div class="tagline">Fresh Naija News • Football • Gossip • Entertainment • World Updates</div>
+            </div>
+
+            <nav class="tabs-container">
+                <div class="tabs">
+                    {% for key, name in categories.items() %}
+                    <a href="/?cat={{ key }}" class="tab {{ 'active' if selected == key else '' }}">{{ name }}</a>
+                    {% endfor %}
+                </div>
+            </nav>
         </header>
 
         <div class="single-container">
@@ -559,8 +582,8 @@ def cron():
         # DB health check
         try:
             db.session.execute("SELECT 1")
-            db.session.commit()
-        except:
+        except Exception as db_err:
+            errors.append(f"DB ping failed: {str(db_err)}")
             db.session.rollback()
         
         with app.app_context():
@@ -594,7 +617,8 @@ def cron():
                                         img = 'https:' + img
                                     elif not img.startswith('http'):
                                         img = urllib.parse.urljoin(e.link, img)
-                            except:
+                            except Exception as ex:
+                                print(f"Article fetch skipped for '{title}': {ex}")
                                 full_text = excerpt
                             if not img:
                                 img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
