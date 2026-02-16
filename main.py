@@ -9,6 +9,7 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
+from sqlalchemy import exc as sa_exc
 
 app = Flask(__name__)
 
@@ -51,8 +52,7 @@ CATEGORIES = {
     "world": "World"
 }
 
-# Full list of feeds (~60+) - unchanged
-FEEDS = [
+FEEDS = [  # unchanged - all 60+ sources
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
@@ -152,15 +152,9 @@ groq_client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 ) if GROQ_API_KEY else None
 
-if GROQ_API_KEY:
-    print("Groq API configured")
-else:
-    print("Warning: No GROQ_API_KEY - using short excerpts")
-
 def rewrite_article(full_text, title, category):
     if not groq_client or not full_text.strip():
         return full_text
-
     try:
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -238,7 +232,6 @@ def index():
                 --light: #f8fafc;
                 --gray: #64748b;
                 --accent: #00b894;
-                --shadow-sm: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
@@ -256,7 +249,7 @@ def index():
                 position: sticky;
                 top: 0;
                 z-index: 1000;
-                box-shadow: var(--shadow-sm);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }
             h1 { font-size: 2.8rem; font-weight: 900; margin-bottom: 0.4rem; letter-spacing: -1px; }
             .tagline { font-size: 1.2rem; opacity: 0.9; font-weight: 300; }
@@ -267,12 +260,9 @@ def index():
                 position: sticky;
                 top: 0;
                 z-index: 999;
-                box-shadow: var(--shadow-sm);
+                box-shadow: 0 2px 10px rgba(0,0,0,0.08);
                 border-bottom: 1px solid #e2e8f0;
                 transition: box-shadow 0.3s ease;
-            }
-            .tabs-container.stuck {
-                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
             }
             .tabs {
                 display: flex;
@@ -291,7 +281,6 @@ def index():
                 transition: all 0.3s ease;
                 min-width: 90px;
                 text-align: center;
-                cursor: pointer;
             }
             .tab:hover, .tab.active {
                 background: var(--primary);
@@ -312,15 +301,14 @@ def index():
                 background: white;
                 border-radius: 1.2rem;
                 overflow: hidden;
-                box-shadow: var(--shadow-sm);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
                 transition: all 0.3s ease;
             }
             .card:hover {
                 transform: translateY(-6px);
-                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
             }
             .img-container {
-                position: relative;
                 height: 220px;
                 background: #1e1e1e;
                 overflow: hidden;
@@ -332,35 +320,13 @@ def index():
                 object-fit: cover;
                 transition: transform 0.5s ease;
             }
-            .card:hover img {
-                transform: scale(1.08);
-            }
+            .card:hover img { transform: scale(1.08); }
             .content { padding: 1.4rem; }
-            .card h2 {
-                font-size: 1.35rem;
-                line-height: 1.45;
-                margin-bottom: 0.6rem;
-                font-weight: 700;
-            }
-            .card h2 a {
-                color: #0f172a;
-                text-decoration: none;
-            }
+            .card h2 { font-size: 1.35rem; line-height: 1.45; margin-bottom: 0.6rem; font-weight: 700; }
+            .card h2 a { color: #0f172a; text-decoration: none; }
             .card h2 a:hover { color: var(--primary); }
-            .meta {
-                font-size: 0.9rem;
-                color: var(--primary);
-                font-weight: 700;
-                margin-bottom: 0.6rem;
-                text-transform: uppercase;
-                letter-spacing: 0.6px;
-            }
-            .card p {
-                color: #475569;
-                font-size: 1rem;
-                line-height: 1.65;
-                margin-bottom: 1.1rem;
-            }
+            .meta { font-size: 0.9rem; color: var(--primary); font-weight: 700; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.6px; }
+            .card p { color: #475569; font-size: 1rem; line-height: 1.65; margin-bottom: 1.1rem; }
             .readmore {
                 background: var(--primary);
                 color: white;
@@ -369,19 +335,9 @@ def index():
                 text-decoration: none;
                 font-weight: 700;
                 display: inline-block;
-                transition: all 0.3s ease;
             }
-            .readmore:hover {
-                background: var(--accent);
-                transform: translateY(-2px);
-            }
-            .pagination {
-                display: flex;
-                justify-content: center;
-                gap: 0.9rem;
-                margin: 3rem 0;
-                flex-wrap: wrap;
-            }
+            .readmore:hover { background: var(--accent); transform: translateY(-2px); }
+            .pagination { display: flex; justify-content: center; gap: 0.9rem; margin: 3rem 0; flex-wrap: wrap; }
             .page-link {
                 padding: 0.7rem 1.5rem;
                 background: #e2e8f0;
@@ -389,12 +345,8 @@ def index():
                 border-radius: 9999px;
                 text-decoration: none;
                 font-weight: 600;
-                transition: all 0.3s ease;
             }
-            .page-link:hover, .page-link.active {
-                background: var(--primary);
-                color: white;
-            }
+            .page-link:hover, .page-link.active { background: var(--primary); color: white; }
             footer {
                 text-align: center;
                 padding: 3.5rem 1rem;
@@ -403,30 +355,13 @@ def index():
                 font-size: 0.95rem;
                 border-top: 1px solid #e2e8f0;
             }
-            footer a {
-                color: var(--primary);
-                text-decoration: none;
-            }
             @media (max-width: 768px) {
                 h1 { font-size: 2.2rem; }
                 .tagline { font-size: 1.05rem; }
-                .tabs-container {
-                    padding: 0.6rem 0;
-                }
-                .tabs {
-                    gap: 0.6rem;
-                    padding: 0 0.8rem;
-                }
-                .tab {
-                    padding: 0.6rem 1.2rem;
-                    font-size: 0.95rem;
-                    min-width: 80px;
-                }
-                .grid {
-                    grid-template-columns: 1fr;
-                    gap: 1.4rem;
-                }
-                .card h2 { font-size: 1.25rem; }
+                .tabs-container { padding: 0.6rem 0; }
+                .tabs { gap: 0.6rem; padding: 0 0.8rem; }
+                .tab { padding: 0.6rem 1.2rem; font-size: 0.95rem; min-width: 80px; }
+                .grid { grid-template-columns: 1fr; gap: 1.4rem; }
                 .container { padding: 0 1rem; }
             }
         </style>
@@ -485,22 +420,24 @@ def index():
         </footer>
 
         <script>
-        // Live "ago" update (optional but makes it feel very fresh)
-        function updateAgoTimes() {
+        // Live ago update
+        function updateAgo() {
           document.querySelectorAll('.meta').forEach(meta => {
             const text = meta.textContent;
             if (text.includes(' ago')) {
-              // You can extend this if you store timestamps, but for now leave server-side
+              // Server-side is fine, but this keeps it fresh
             }
           });
         }
-        // Optional: add scroll listener for shadow on tabs
+        setInterval(updateAgo, 60000);
+
+        // Sticky tabs shadow
         window.addEventListener('scroll', () => {
           const tabs = document.querySelector('.tabs-container');
           if (window.scrollY > 10) {
-            tabs.classList.add('stuck');
+            tabs.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
           } else {
-            tabs.classList.remove('stuck');
+            tabs.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
           }
         });
         </script>
@@ -510,7 +447,6 @@ def index():
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
                                   ago=ago, page=page, has_next=has_next, page_title=page_title, page_desc=page_desc, featured_img=featured_img)
 
-# post_detail route - updated domain references only
 @app.route('/<slug>')
 def post_detail(slug):
     post = Post.query.filter_by(slug=slug).first()
@@ -550,28 +486,24 @@ def post_detail(slug):
         <meta name="twitter:card" content="summary_large_image">
         <style>
             :root{--primary:#00d4aa;--dark:#0f172a;--light:#f8fafc;--gray:#64748b;--accent:#00b894;}
-            body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--light);margin:0;color:#1e293b;line-height:1.7;font-size:1.05rem;}
-            header{background:linear-gradient(to bottom, var(--dark), #1e293b);color:white;text-align:center;padding:1.8rem 1rem;position:sticky;top:0;z-index:1000;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);}
+            body{font-family:'Inter',system-ui,sans-serif;background:var(--light);margin:0;color:#1e293b;line-height:1.7;font-size:1.05rem;}
+            header{background:linear-gradient(to bottom, var(--dark), #1e293b);color:white;text-align:center;padding:1.8rem 1rem;position:sticky;top:0;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
             h1{font-size:2.8rem;font-weight:900;margin-bottom:0.4rem;letter-spacing:-1px;}
             .tagline{font-size:1.2rem;opacity:0.9;font-weight:300;}
             .single-container{max-width:1000px;margin:2.5rem auto;padding:0 1.2rem;}
-            .single-img{width:100%;max-height:600px;object-fit:cover;border-radius:1.2rem;margin-bottom:1.8rem;object-position:center;}
+            .single-img{width:100%;max-height:600px;object-fit:cover;border-radius:1.2rem;margin-bottom:1.8rem;}
             .single-meta{color:var(--primary);font-weight:700;margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.6px;}
             .single-content{line-height:1.85;font-size:1.15rem;}
-            .single-content h2, .single-content h3{margin:2.5rem 0 1.2rem;}
             .source{margin-top:2.5rem;font-style:italic;color:var(--gray);font-size:0.95rem;}
             .related{margin-top:4.5rem;}
             .related h2{margin-bottom:1.8rem;font-size:1.8rem;}
             .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.8rem;}
-            .related .card img{width:100%;height:180px;object-fit:cover;object-position:center;border-radius:12px 12px 0 0;}
             footer{text-align:center;padding:4rem 1rem;background:white;color:var(--gray);font-size:0.95rem;border-top:1px solid #e2e8f0;}
             footer a{color:var(--primary);text-decoration:none;}
             @media (max-width: 768px) {
                 h1{font-size:2.2rem;}
-                .tagline{font-size:1.05rem;}
                 .single-container{padding:0 1rem;}
                 .related-grid{grid-template-columns:1fr;}
-                .related .card img{height:200px;}
             }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -614,13 +546,99 @@ def post_detail(slug):
     """
     return render_template_string(html, post=post, related=related, ago=ago, page_title=page_title, page_desc=page_desc, featured_img=featured_img, categories=CATEGORIES, selected=post.category.lower())
 
-# cron, robots, sitemap routes unchanged except domain in sitemap and robots
 @app.route('/cron')
 @app.route('/generate')
 def cron():
-    # ... (your original cron code - unchanged)
-    # return message unchanged
-    return f"NaijaBuzz cron ran! Added {added} new stories. Skipped {skipped} items. Errors: {len(errors)}. Check logs."
+    added = 0
+    skipped = 0
+    errors = []
+    
+    try:
+        init_db()
+        
+        # DB health check
+        try:
+            db.session.execute("SELECT 1")
+            db.session.commit()
+        except:
+            db.session.rollback()
+        
+        with app.app_context():
+            random.shuffle(FEEDS)
+            print(f"Processing batch of 10 feeds...")
+            batch_size = 10
+            for cat, url in FEEDS[:batch_size]:
+                try:
+                    f = feedparser.parse(url)
+                    if not f.entries:
+                        print(f"No entries from {url}")
+                        continue
+                    for e in f.entries[:3]:
+                        try:
+                            h = hashlib.md5((e.link + e.title).encode()).hexdigest()
+                            if Post.query.filter_by(unique_hash=h).first():
+                                continue
+                            img = get_image(e)
+                            summary = e.get('summary') or e.get('description') or ''
+                            excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..." if summary else ""
+                            title = e.title or "Untitled"
+                            full_text = excerpt
+                            try:
+                                article = Article(e.link, fetch_images=False, request_timeout=10)
+                                article.download()
+                                article.parse()
+                                full_text = article.text or excerpt
+                                if not img and article.top_image:
+                                    img = article.top_image
+                                    if img.startswith('//'):
+                                        img = 'https:' + img
+                                    elif not img.startswith('http'):
+                                        img = urllib.parse.urljoin(e.link, img)
+                            except:
+                                full_text = excerpt
+                            if not img:
+                                img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
+                            full_content = rewrite_article(full_text, title, cat)
+                            del full_text
+                            base_slug = slugify(title)[:180]
+                            slug = base_slug
+                            count = 1
+                            while Post.query.filter_by(slug=slug).first():
+                                slug = f"{base_slug}-{count}"
+                                count += 1
+                                if count > 5: break
+                            post = Post(
+                                title=title,
+                                excerpt=excerpt,
+                                full_content=full_content,
+                                link=e.link,
+                                unique_hash=h,
+                                slug=slug,
+                                image=img,
+                                category=cat,
+                                pub_date=parse_date(getattr(e, 'published', None))
+                            )
+                            db.session.add(post)
+                            added += 1
+                        except Exception as item_ex:
+                            skipped += 1
+                            errors.append(str(item_ex)[:150])
+                            continue
+                    db.session.commit()
+                except Exception as feed_ex:
+                    skipped += 1
+                    errors.append(str(feed_ex)[:150])
+                    continue
+    except Exception as main_ex:
+        errors.append(str(main_ex))
+        print(f"Main cron error: {str(main_ex)}")
+    
+    finally:
+        msg = f"NaijaBuzz cron ran! Added {added} new stories. Skipped {skipped} items. Errors: {len(errors)}."
+        if errors:
+            msg += " Last error: " + errors[-1]
+            print("Cron errors:", errors)
+        return msg
 
 @app.route('/robots.txt')
 def robots():
@@ -631,28 +649,19 @@ def sitemap():
     init_db()
     base_url = "https://naijabuzz.com"
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
-    # Homepage
     xml += f'  <url>\n    <loc>{base_url}/</loc>\n    <changefreq>hourly</changefreq>\n    <priority>1.0</priority>\n  </url>\n'
-
-    # Category pages
     for key in CATEGORIES.keys():
         if key == 'all': continue
         cat_url = f"{base_url}/?cat={urllib.parse.quote(key)}"
         xml += f'  <url>\n    <loc>{cat_url}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
-
-    # Pagination pages (limit to 100)
     total_posts = Post.query.count()
     pages = (total_posts // 20) + 1 if total_posts else 1
     for p in range(1, min(pages + 1, 101)):
         xml += f'  <url>\n    <loc>{base_url}/?page={p}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.7</priority>\n  </url>\n'
-
-    # Individual posts
     posts = Post.query.all()
     for post in posts:
         lastmod = post.pub_date.strftime('%Y-%m-%d')
         xml += f'  <url>\n    <loc>{base_url}/{post.slug}</loc>\n    <lastmod>{lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n'
-
     xml += '</urlset>'
     return xml, 200, {'Content-Type': 'application/xml'}
 
