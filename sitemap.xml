@@ -1,43 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Homepage - highest priority, changes frequently -->
   <url>
-    <loc>https://blog.naijabuzz.com/</loc>
+    <loc>https://naijabuzz.com/</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
+
+  <!-- Key category pages (limited selection - avoids bloat) -->
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=naija%20news</loc>
+    <loc>https://naijabuzz.com/?cat=naija%20news</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=gossip</loc>
+    <loc>https://naijabuzz.com/?cat=football</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=football</loc>
+    <loc>https://naijabuzz.com/?cat=gossip</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=sports</loc>
+    <loc>https://naijabuzz.com/?cat=entertainment</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=entertainment</loc>
+    <loc>https://naijabuzz.com/?cat=world</loc>
+    <lastmod>2026-03-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <!-- Important recent articles - add more as you publish -->
+  <!-- Use real slugs from your site + approximate or real lastmod date -->
+
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=viral</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <loc>https://naijabuzz.com/barcelona-takes-huge-step-in-sealing-a-deal-for-marcus-rashford</loc>
+    <lastmod>2026-03-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
   </url>
+
+  <!-- Add 10–50 more of your newest articles here manually -->
+  <!-- Example format: -->
+  <!--
   <url>
-    <loc>https://blog.naijabuzz.com/?cat=world</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <loc>https://naijabuzz.com/tiktoker-mirabel-recants-rape-claim-as-ogun-govt-hands-her-to-police-after-treatment</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
   </url>
+  -->
+
 </urlset>
