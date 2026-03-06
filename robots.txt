@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
-Disallow: /generate
-Sitemap: https://blog.naijabuzz.com/sitemap.xml
+
+# Prevent crawling of pagination to save crawl budget and reduce duplicate content signals
+Disallow: /*?page=*
+Disallow: /*?cat=*&page=*
+
+# Tell search engines where your sitemap is
+Sitemap: https://naijabuzz.com/sitemap.xml
