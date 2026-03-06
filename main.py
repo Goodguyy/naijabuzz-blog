@@ -56,12 +56,57 @@ FEEDS = [
     ("Naija News", "https://punchng.com/feed/"),
     ("Naija News", "https://www.vanguardngr.com/feed"),
     ("Naija News", "https://www.premiumtimesng.com/feed"),
-    # ... (keeping all your original feeds unchanged)
+    ("Naija News", "https://thenationonlineng.net/feed/"),
+    ("Naija News", "https://saharareporters.com/feeds/articles/feed"),
+    ("Naija News", "https://www.thisdaylive.com/feed/"),
+    ("Naija News", "https://guardian.ng/feed/"),
+    ("Naija News", "https://www.channelstv.com/feed"),
+    ("Naija News", "https://tribuneonlineng.com/feed"),
+    ("Naija News", "https://dailypost.ng/feed/"),
+    ("Naija News", "https://blueprint.ng/feed/"),
+    ("Naija News", "https://newtelegraphng.com/feed"),
+    ("Naija News", "https://www.legit.ng/rss/all.rss"),
+    ("Naija News", "https://www.thecable.ng/feed"),
+    ("Gossip", "https://lindaikeji.blogspot.com/feeds/posts/default"),
+    ("Gossip", "https://www.bellanaija.com/feed/"),
+    ("Gossip", "https://www.kemifilani.ng/feed"),
+    ("Gossip", "https://www.gistlover.com/feed"),
+    ("Gossip", "https://www.naijaloaded.com.ng/feed"),
+    ("Gossip", "https://creebhills.com/feed"),
+    ("Gossip", "https://www.informationng.com/feed"),
+    ("Football", "https://www.goal.com/en-ng/rss"),
+    ("Football", "https://www.allnigeriasoccer.com/rss.xml"),
+    ("Football", "https://www.owngoalnigeria.com/rss"),
+    ("Football", "https://soccernet.ng/rss"),
+    ("Football", "https://www.pulsesports.ng/rss"),
+    ("Football", "https://www.completesports.com/feed/"),
+    ("Football", "https://sportsration.com/feed/"),
+    ("Sports", "https://www.vanguardngr.com/sports/feed"),
+    ("Sports", "https://punchng.com/sports/feed/"),
+    ("Sports", "https://www.premiumtimesng.com/sports/feed"),
+    ("Sports", "https://tribuneonlineng.com/sports/feed"),
+    ("Sports", "https://blueprint.ng/sports/feed/"),
+    ("Entertainment", "https://www.pulse.ng/rss"),
+    ("Entertainment", "https://notjustok.com/feed/"),
+    ("Entertainment", "https://tooxclusive.com/feed/"),
+    ("Entertainment", "https://www.36ng.com.ng/feed/"),
+    ("Lifestyle", "https://www.sisiyemmie.com/feed"),
+    ("Lifestyle", "https://www.bellanaija.com/style/feed/"),
+    ("Lifestyle", "https://www.pulse.ng/lifestyle/rss"),
+    ("Lifestyle", "https://vanguardngr.com/lifeandstyle/feed"),
+    ("Education", "https://myschoolgist.com/feed"),
+    ("Education", "https://flashlearners.com/feed/"),
+    ("Tech", "https://techcabal.com/feed/"),
+    ("Tech", "https://technext.ng/feed"),
+    ("Tech", "https://techpoint.africa/feed"),
+    ("Viral", "https://www.naijaloaded.com.ng/category/viral/feed"),
+    ("World", "http://feeds.bbci.co.uk/news/world/rss.xml"),
+    ("World", "http://feeds.reuters.com/Reuters/worldNews"),
+    ("World", "https://www.aljazeera.com/xml/rss/all.xml"),
     ("World", "https://www.theguardian.com/world/rss"),
 ]
 
 def get_image(entry):
-    # unchanged
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
     if hasattr(entry, 'media_content'):
@@ -99,7 +144,6 @@ groq_client = OpenAI(
 ) if GROQ_API_KEY else None
 
 def rewrite_article(full_text, title, category):
-    # unchanged
     if not groq_client or not full_text.strip():
         return full_text
     try:
@@ -250,7 +294,7 @@ def index():
             }
             .grid {
                 display: grid;
-                grid-template-columns: repeat(4, 1fr);           /* 4 columns on desktop */
+                grid-template-columns: repeat(4, 1fr);
                 gap: 2rem;
             }
             .card {
@@ -441,10 +485,6 @@ def index():
     return render_template_string(html, posts=posts, categories=CATEGORIES, selected=selected,
                                   ago=ago, page=page, has_next=has_next, page_title=page_title, page_desc=page_desc, featured_img=featured_img)
 
-# ────────────────────────────────────────────────
-#  POST DETAIL PAGE (updated with more professional look)
-# ────────────────────────────────────────────────
-
 @app.route('/<slug>')
 def post_detail(slug):
     post = Post.query.filter_by(slug=slug).first()
@@ -566,19 +606,106 @@ def post_detail(slug):
     """
     return render_template_string(html, post=post, related=related, ago=ago, page_title=page_title, page_desc=page_desc, featured_img=featured_img, categories=CATEGORIES, selected=post.category.lower())
 
-# Cron job (unchanged)
 @app.route('/cron')
 @app.route('/generate')
 def cron():
-    # ... (your original cron code remains 100% unchanged)
-    # I've omitted it here for brevity, but keep it exactly as it was
-    pass  # ← replace with your full cron function
+    added = 0
+    skipped = 0
+    errors = []
+    
+    try:
+        init_db()
+        
+        # DB health check
+        try:
+            db.session.execute("SELECT 1")
+        except Exception as db_err:
+            errors.append(f"DB ping failed: {str(db_err)}")
+            db.session.rollback()
+        
+        with app.app_context():
+            random.shuffle(FEEDS)
+            print(f"Processing batch of 10 feeds...")
+            batch_size = 10
+            for cat, url in FEEDS[:batch_size]:
+                try:
+                    f = feedparser.parse(url)
+                    if not f.entries:
+                        print(f"No entries from {url}")
+                        continue
+                    for e in f.entries[:3]:
+                        try:
+                            h = hashlib.md5((e.link + e.title).encode()).hexdigest()
+                            if Post.query.filter_by(unique_hash=h).first():
+                                continue
+                            img = get_image(e)
+                            summary = e.get('summary') or e.get('description') or ''
+                            excerpt = BeautifulSoup(summary, 'html.parser').get_text(separator=' ')[:360] + "..." if summary else ""
+                            title = e.title or "Untitled"
+                            full_text = excerpt
+                            try:
+                                article = Article(e.link, fetch_images=False, request_timeout=10)
+                                article.download()
+                                article.parse()
+                                full_text = article.text or excerpt
+                                if not img and article.top_image:
+                                    img = article.top_image
+                                    if img.startswith('//'):
+                                        img = 'https:' + img
+                                    elif not img.startswith('http'):
+                                        img = urllib.parse.urljoin(e.link, img)
+                            except Exception as ex:
+                                print(f"Article fetch skipped for '{title}': {ex}")
+                                full_text = excerpt
+                            if not img:
+                                img = "https://via.placeholder.com/800x450/1e1e1e/ffffff?text=NaijaBuzz"
+                            full_content = rewrite_article(full_text, title, cat)
+                            del full_text
+                            base_slug = slugify(title)[:180]
+                            slug = base_slug
+                            count = 1
+                            while Post.query.filter_by(slug=slug).first():
+                                slug = f"{base_slug}-{count}"
+                                count += 1
+                                if count > 5: break
+                            post = Post(
+                                title=title,
+                                excerpt=excerpt,
+                                full_content=full_content,
+                                link=e.link,
+                                unique_hash=h,
+                                slug=slug,
+                                image=img,
+                                category=cat,
+                                pub_date=parse_date(getattr(e, 'published', None))
+                            )
+                            db.session.add(post)
+                            added += 1
+                        except Exception as item_ex:
+                            skipped += 1
+                            errors.append(str(item_ex)[:150])
+                            continue
+                    db.session.commit()
+                except Exception as feed_ex:
+                    skipped += 1
+                    errors.append(str(feed_ex)[:150])
+                    continue
+    except Exception as main_ex:
+        errors.append(str(main_ex))
+        print(f"Main cron error: {str(main_ex)}")
+    
+    finally:
+        msg = f"NaijaBuzz cron ran! Added {added} new stories. Skipped {skipped} items. Errors: {len(errors)}."
+        if errors:
+            msg += " Last error: " + errors[-1]
+            print("Cron errors:", errors)
+        return msg
 
 @app.route('/robots.txt')
 def robots():
     return "User-agent: *\nAllow: /\nSitemap: https://naijabuzz.com/sitemap.xml", 200, {'Content-Type': 'text/plain'}
 
-# NO /sitemap.xml route anymore — use static file instead
+# IMPORTANT: No /sitemap.xml route — use static sitemap.xml file in root
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
