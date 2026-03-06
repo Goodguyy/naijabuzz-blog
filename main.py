@@ -9,6 +9,8 @@ import requests
 from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
+import google.generativeai as genai
+from functools import lru_cache  # for simple caching
 from sqlalchemy import exc as sa_exc
 
 app = Flask(__name__)
@@ -137,39 +139,128 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
+# ────────────────────────────────────────────────
+# API CLIENTS
+# ────────────────────────────────────────────────
+
+# Groq
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"
 ) if GROQ_API_KEY else None
 
+# Gemini
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+# Hugging Face
+HF_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
+
+# Simple cache (max 200 unique rewrites in memory - clears on restart)
+@lru_cache(maxsize=200)
+def cached_rewrite(title_hash, full_text_hash):
+    """Dummy wrapper - actual logic in rewrite_article"""
+    return None  # will be overridden
+
 def rewrite_article(full_text, title, category):
-    if not groq_client or not full_text.strip():
-        return full_text
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": f"""
+    cache_key = hashlib.md5((title + full_text[:500]).encode()).hexdigest()
+    cached = cached_rewrite(title, cache_key)
+    if cached:
+        print(f"[CACHE HIT] for {title}")
+        return cached
+
+    original_text = full_text.strip()
+
+    # 1. Gemini (highest priority - best free limits)
+    if GEMINI_API_KEY:
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = f"""
                 Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
                 Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
                 Aim for 300–500 words. Do NOT copy original sentences directly.
                 Original title: {title}
                 Category: {category}
-                Content: {full_text[:3000]}
-            """}],
-            max_tokens=500,
-            temperature=0.7
-        )
-        rewritten = response.choices[0].message.content.strip()
-        if rewritten:
-            return rewritten
-    except Exception as e:
-        print(f"Groq error for '{title}': {str(e)[:200]}")
-    return full_text[:800] + "..."
+                Content: {full_text[:4000]}
+            """
+            print(f"[Gemini] Rewriting: {title}")
+            response = model.generate_content(prompt, request_options={"timeout": 30})
+            rewritten = response.text.strip()
+            if rewritten and len(rewritten) > 200:
+                print(f"[Gemini SUCCESS] {len(rewritten)} chars")
+                cached_rewrite(title, cache_key)  # cache it
+                return rewritten
+        except Exception as e:
+            print(f"[Gemini FAILED] {str(e)}")
+
+    # 2. Hugging Face (strong fallback)
+    if HF_API_KEY:
+        try:
+            headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+            payload = {
+                "inputs": f"""
+                    Rewrite this article completely in your own words as an original piece for Nigerian readers.
+                    Include relevant Naija context, implications, or angles where natural.
+                    Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
+                    Aim for 300–500 words. Do NOT copy original sentences directly.
+                    Original title: {title}
+                    Category: {category}
+                    Content: {full_text[:3000]}
+                """,
+                "parameters": {"max_new_tokens": 600, "temperature": 0.7, "do_sample": True}
+            }
+            print(f"[HF] Rewriting: {title}")
+            response = requests.post(
+                "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.1-8B-Instruct",
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+            rewritten = result[0]['generated_text'].strip()
+            if rewritten and len(rewritten) > 200:
+                print(f"[HF SUCCESS] {len(rewritten)} chars")
+                cached_rewrite(title, cache_key)
+                return rewritten
+        except Exception as e:
+            print(f"[HF FAILED] {str(e)}")
+
+    # 3. Groq (last resort)
+    if groq_client:
+        try:
+            print(f"[Groq] Rewriting: {title}")
+            response = groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": f"""
+                    Rewrite this article completely in your own words as an original piece for Nigerian readers.
+                    Include relevant Naija context, implications, or angles where natural.
+                    Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
+                    Aim for 300–500 words. Do NOT copy original sentences directly.
+                    Original title: {title}
+                    Category: {category}
+                    Content: {full_text[:3000]}
+                """}],
+                max_tokens=800,
+                temperature=0.7,
+                timeout=30
+            )
+            rewritten = response.choices[0].message.content.strip()
+            if rewritten and len(rewritten) > 200:
+                print(f"[Groq SUCCESS] {len(rewritten)} chars")
+                cached_rewrite(title, cache_key)
+                return rewritten
+        except Exception as e:
+            print(f"[Groq FAILED] {str(e)}")
+
+    # Ultimate fallback: full original text
+    print("[FALLBACK] Using full original text")
+    return original_text
 
 # ────────────────────────────────────────────────
-# SERVE STATIC FILES FROM ROOT (fixes /sitemap.xml and /robots.txt)
+# SERVE STATIC FILES FROM ROOT
 # ────────────────────────────────────────────────
 @app.route('/sitemap.xml')
 def serve_sitemap():
@@ -377,7 +468,6 @@ def index():
             @media (max-width: 480px) {
                 .grid { grid-template-columns: 1fr; }
                 h1 { font-size: 1.8rem; }
-                .single-container { padding: 0 0.8rem; margin: 1rem auto; }
             }
         </style>
     </head>
@@ -656,34 +746,14 @@ def post_detail(slug):
                 text-decoration: none;
             }
             @media (max-width: 768px) {
-                header {
-                    padding: 0.6rem 0;
-                }
-                h1 {
-                    font-size: 1.8rem;
-                    margin: 0.3rem 0;
-                }
-                .tagline {
-                    font-size: 0.9rem;
-                }
-                .single-container {
-                    margin: 1rem auto;
-                    padding: 0 0.8rem;
-                }
-                .single-img {
-                    max-height: 400px;
-                    margin: 0.8rem 0 1.2rem;
-                }
-                .single-meta {
-                    font-size: 0.85rem;
-                    margin-bottom: 0.6rem;
-                }
-                .single-content {
-                    font-size: 1.05rem;
-                }
-                .related-grid {
-                    grid-template-columns: 1fr;
-                }
+                header { padding: 0.6rem 0; }
+                h1 { font-size: 1.8rem; margin: 0.3rem 0; }
+                .tagline { font-size: 0.9rem; }
+                .single-container { margin: 1rem auto; padding: 0 0.8rem; }
+                .single-img { max-height: 400px; margin: 0.8rem 0 1.2rem; }
+                .single-meta { font-size: 0.85rem; margin-bottom: 0.6rem; }
+                .single-content { font-size: 1.05rem; }
+                .related-grid { grid-template-columns: 1fr; }
             }
             @media (max-width: 480px) {
                 h1 { font-size: 1.6rem; }
@@ -745,17 +815,17 @@ def cron():
     added = 0
     skipped = 0
     errors = []
-    
+
     try:
         init_db()
-        
+
         # DB health check
         try:
             db.session.execute("SELECT 1")
         except Exception as db_err:
             errors.append(f"DB ping failed: {str(db_err)}")
             db.session.rollback()
-        
+
         with app.app_context():
             random.shuffle(FEEDS)
             print(f"Processing batch of 10 feeds...")
@@ -826,7 +896,7 @@ def cron():
     except Exception as main_ex:
         errors.append(str(main_ex))
         print(f"Main cron error: {str(main_ex)}")
-    
+
     finally:
         msg = f"NaijaBuzz cron ran! Added {added} new stories. Skipped {skipped} items. Errors: {len(errors)}."
         if errors:
