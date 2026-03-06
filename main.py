@@ -10,10 +10,14 @@ from newspaper import Article
 from slugify import slugify
 from openai import OpenAI
 import google.generativeai as genai
-from functools import lru_cache  # for simple caching
-from sqlalchemy import exc as sa_exc
+from functools import lru_cache
+from sqlalchemy import text  # for clean DB ping
 
 app = Flask(__name__)
+
+# Load environment variables from .env file (if present)
+from dotenv import load_dotenv
+load_dotenv()
 
 # Database configuration
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
@@ -139,43 +143,37 @@ def parse_date(d):
     try: return date_parser.parse(d).astimezone(timezone.utc)
     except: return datetime.now(timezone.utc)
 
-# ────────────────────────────────────────────────
-# API CLIENTS
-# ────────────────────────────────────────────────
-
-# Groq
+# API Clients
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 groq_client = OpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"
 ) if GROQ_API_KEY else None
 
-# Gemini
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
-# Hugging Face
 HF_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
 
-# Simple cache (max 200 unique rewrites in memory - clears on restart)
-@lru_cache(maxsize=200)
-def cached_rewrite(title_hash, full_text_hash):
-    """Dummy wrapper - actual logic in rewrite_article"""
-    return None  # will be overridden
+# Cache rewrites (max 500 unique in memory)
+@lru_cache(maxsize=500)
+def cached_rewrite(key):
+    return None  # placeholder
 
 def rewrite_article(full_text, title, category):
-    cache_key = hashlib.md5((title + full_text[:500]).encode()).hexdigest()
-    cached = cached_rewrite(title, cache_key)
+    cache_key = hashlib.sha256((title + full_text[:1000]).encode()).hexdigest()
+    cached = cached_rewrite(cache_key)
     if cached:
-        print(f"[CACHE HIT] for {title}")
+        print(f"[CACHE HIT] {title}")
         return cached
 
     original_text = full_text.strip()
+    print(f"[REWRITE] {title} ({len(original_text)} chars)")
 
-    # 1. Gemini (highest priority - best free limits)
+    # 1. Gemini
     if GEMINI_API_KEY:
         try:
             genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
             prompt = f"""
                 Rewrite this article completely in your own words as an original piece for Nigerian readers.
                 Include relevant Naija context, implications, or angles where natural.
@@ -183,19 +181,19 @@ def rewrite_article(full_text, title, category):
                 Aim for 300–500 words. Do NOT copy original sentences directly.
                 Original title: {title}
                 Category: {category}
-                Content: {full_text[:4000]}
+                Content: {original_text[:4000]}
             """
-            print(f"[Gemini] Rewriting: {title}")
-            response = model.generate_content(prompt, request_options={"timeout": 30})
+            print("[Gemini] Trying...")
+            response = model.generate_content(prompt, request_options={"timeout": 45})
             rewritten = response.text.strip()
             if rewritten and len(rewritten) > 200:
                 print(f"[Gemini SUCCESS] {len(rewritten)} chars")
-                cached_rewrite(title, cache_key)  # cache it
+                cached_rewrite(cache_key)
                 return rewritten
         except Exception as e:
             print(f"[Gemini FAILED] {str(e)}")
 
-    # 2. Hugging Face (strong fallback)
+    # 2. Hugging Face
     if HF_API_KEY:
         try:
             headers = {"Authorization": f"Bearer {HF_API_KEY}"}
@@ -207,61 +205,54 @@ def rewrite_article(full_text, title, category):
                     Aim for 300–500 words. Do NOT copy original sentences directly.
                     Original title: {title}
                     Category: {category}
-                    Content: {full_text[:3000]}
+                    Content: {original_text[:3000]}
                 """,
-                "parameters": {"max_new_tokens": 600, "temperature": 0.7, "do_sample": True}
+                "parameters": {"max_new_tokens": 700, "temperature": 0.7, "do_sample": True}
             }
-            print(f"[HF] Rewriting: {title}")
-            response = requests.post(
-                "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.1-8B-Instruct",
+            print("[HF] Trying...")
+            resp = requests.post(
+                "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
                 headers=headers,
                 json=payload,
-                timeout=30
+                timeout=45
             )
-            response.raise_for_status()
-            result = response.json()
+            resp.raise_for_status()
+            result = resp.json()
             rewritten = result[0]['generated_text'].strip()
             if rewritten and len(rewritten) > 200:
                 print(f"[HF SUCCESS] {len(rewritten)} chars")
-                cached_rewrite(title, cache_key)
+                cached_rewrite(cache_key)
                 return rewritten
         except Exception as e:
             print(f"[HF FAILED] {str(e)}")
 
-    # 3. Groq (last resort)
+    # 3. Groq
     if groq_client:
         try:
-            print(f"[Groq] Rewriting: {title}")
-            response = groq_client.chat.completions.create(
+            print("[Groq] Trying...")
+            resp = groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": f"""
-                    Rewrite this article completely in your own words as an original piece for Nigerian readers.
-                    Include relevant Naija context, implications, or angles where natural.
-                    Keep tone neutral but interesting. Structure: hook intro, main body (short paragraphs), conclusion.
-                    Aim for 300–500 words. Do NOT copy original sentences directly.
-                    Original title: {title}
-                    Category: {category}
-                    Content: {full_text[:3000]}
+                    Rewrite this article in your own words for Nigerian readers. Add Naija context if relevant.
+                    Tone neutral, interesting. 300–500 words. Title: {title}. Category: {category}.
+                    Content: {original_text[:2000]}
                 """}],
-                max_tokens=800,
+                max_tokens=600,
                 temperature=0.7,
-                timeout=30
+                timeout=45
             )
-            rewritten = response.choices[0].message.content.strip()
+            rewritten = resp.choices[0].message.content.strip()
             if rewritten and len(rewritten) > 200:
                 print(f"[Groq SUCCESS] {len(rewritten)} chars")
-                cached_rewrite(title, cache_key)
+                cached_rewrite(cache_key)
                 return rewritten
         except Exception as e:
             print(f"[Groq FAILED] {str(e)}")
 
-    # Ultimate fallback: full original text
-    print("[FALLBACK] Using full original text")
+    print("[FALLBACK] Using original text")
     return original_text
 
-# ────────────────────────────────────────────────
-# SERVE STATIC FILES FROM ROOT
-# ────────────────────────────────────────────────
+# Serve static files
 @app.route('/sitemap.xml')
 def serve_sitemap():
     return send_from_directory('.', 'sitemap.xml')
@@ -819,9 +810,9 @@ def cron():
     try:
         init_db()
 
-        # DB health check
+        # DB health check (fixed with text())
         try:
-            db.session.execute("SELECT 1")
+            db.session.execute(text("SELECT 1"))
         except Exception as db_err:
             errors.append(f"DB ping failed: {str(db_err)}")
             db.session.rollback()
