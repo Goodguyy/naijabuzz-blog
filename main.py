@@ -109,16 +109,38 @@ FEEDS = [
 ]
 
 def get_image(entry):
+    # Priority 1: media_thumbnail (often best quality)
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         return entry.media_thumbnail[0]['url']
+
+    # Priority 2: media_content (images in feed)
     if hasattr(entry, 'media_content'):
         for m in entry.media_content:
             if m.get('medium') == 'image' and m.get('url'):
                 return m['url']
+
+    # Priority 3: enclosures (attached media)
     if hasattr(entry, 'enclosures'):
         for e in entry.enclosures:
             if 'image' in str(e.type or '').lower():
                 return e.get('url') or e.get('href')
+
+    # Priority 4: newspaper3k article parsing (most reliable for real images)
+    try:
+        article = Article(entry.link, fetch_images=False, request_timeout=8)
+        article.download()
+        article.parse()
+        if article.top_image and 'punch' not in article.top_image.lower() and 'logo' not in article.top_image.lower():
+            img = article.top_image
+            if img.startswith('//'):
+                img = 'https:' + img
+            elif not img.startswith('http'):
+                img = urllib.parse.urljoin(entry.link, img)
+            return img
+    except Exception:
+        pass
+
+    # Priority 5: fallback to soup in content/summary
     content = entry.get('summary') or entry.get('description') or ''
     if not content and hasattr(entry, 'content'):
         content = entry.content[0].get('value', '') if entry.content else ''
@@ -127,12 +149,15 @@ def get_image(entry):
         img = soup.find('img')
         if img and img.get('src'):
             url = img['src'].strip()
-            if url.startswith('//'):
-                url = 'https:' + url
-            elif not url.startswith('http'):
-                url = urllib.parse.urljoin(entry.link, url)
-            return url
-    return "/static/img/naijabuzz-placeholder.jpg"  # your custom placeholder
+            if 'punch' not in url.lower() and 'logo' not in url.lower() and 'placeholder' not in url.lower():
+                if url.startswith('//'):
+                    url = 'https:' + url
+                elif not url.startswith('http'):
+                    url = urllib.parse.urljoin(entry.link, url)
+                return url
+
+    # Ultimate fallback: custom placeholder
+    return "/static/img/naijabuzz-placeholder.jpg"
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
@@ -501,7 +526,7 @@ def index():
     <body>
         <header>
             <div class="header-inner">
-                <h1>NaijaBuzz</h1>
+                <h1><a href="/" style="color:white;text-decoration:none;">NaijaBuzz</a></h1>
                 <div class="tagline">Your Daily Dose of Fresh Nigerian & Global News</div>
             </div>
 
@@ -787,7 +812,7 @@ def post_detail(slug):
     <body>
         <header>
             <div class="header-inner">
-                <h1>NaijaBuzz</h1>
+                <h1><a href="/" style="color:white;text-decoration:none;">NaijaBuzz</a></h1>
             </div>
 
             <nav class="tabs-container">
