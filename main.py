@@ -11,11 +11,11 @@ from slugify import slugify
 from openai import OpenAI
 import google.generativeai as genai
 from functools import lru_cache
-from sqlalchemy import text  # for clean DB ping
+from sqlalchemy import text
 
 app = Flask(__name__)
 
-# Database configuration (Render will use DATABASE_URL from env)
+# Database configuration (Render uses DATABASE_URL from env)
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -150,7 +150,7 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 HF_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
 
-# Cache rewrites (max 500 unique in memory)
+# Cache rewrites
 @lru_cache(maxsize=500)
 def cached_rewrite(key):
     return None
@@ -248,7 +248,7 @@ def rewrite_article(full_text, title, category):
     print("[FALLBACK] Using original text")
     return original_text
 
-# Serve static files
+# Static files
 @app.route('/sitemap.xml')
 def serve_sitemap():
     return send_from_directory('.', 'sitemap.xml')
@@ -328,8 +328,7 @@ def index():
                 top: 0;
                 z-index: 1000;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-                padding: 1.2rem 0;
-                transition: padding 0.3s ease;
+                padding: 0.8rem 0;
             }
             .header-inner {
                 text-align: center;
@@ -337,7 +336,7 @@ def index():
             }
             h1 {
                 font-family: 'Playfair Display', serif;
-                font-size: 2.6rem;
+                font-size: 2.4rem;
                 font-weight: 700;
                 margin: 0;
                 letter-spacing: -1px;
@@ -349,26 +348,27 @@ def index():
             }
             .tabs-container {
                 background: white;
-                padding: 0.8rem 0;
+                padding: 0.6rem 0;
                 overflow-x: auto;
                 border-bottom: 1px solid var(--border);
             }
             .tabs {
                 display: flex;
-                gap: 0.7rem;
-                padding: 0 1rem;
+                gap: 0.6rem;
+                padding: 0 0.5rem;
                 white-space: nowrap;
-                justify-content: center;
+                justify-content: flex-start;
             }
             .tab {
-                padding: 0.6rem 1.3rem;
+                padding: 0.5rem 1.1rem;
                 background: #f1f5f9;
                 color: #475569;
                 border-radius: 9999px;
                 font-weight: 600;
-                font-size: 0.95rem;
+                font-size: 0.9rem;
                 text-decoration: none;
                 transition: all 0.3s ease;
+                flex-shrink: 0;
             }
             .tab:hover, .tab.active {
                 background: var(--primary);
@@ -376,28 +376,28 @@ def index():
             }
             .container {
                 max-width: 1440px;
-                margin: 2rem auto;
-                padding: 0 1rem;
+                margin: 1.5rem auto;
+                padding: 0 0.8rem;
             }
             .grid {
                 display: grid;
                 grid-template-columns: repeat(4, 1fr);
-                gap: 1.8rem;
+                gap: 1.5rem;
             }
             .card {
                 background: white;
-                border-radius: 1rem;
+                border-radius: 0.8rem;
                 overflow: hidden;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+                box-shadow: 0 3px 12px rgba(0,0,0,0.08);
                 transition: all 0.3s ease;
                 border: 1px solid var(--border);
             }
             .card:hover {
-                transform: translateY(-6px);
-                box-shadow: 0 16px 32px rgba(0,0,0,0.12);
+                transform: translateY(-4px);
+                box-shadow: 0 12px 24px rgba(0,0,0,0.1);
             }
             .img-container {
-                height: 220px;
+                height: 180px;
                 background: #0f172a;
                 overflow: hidden;
             }
@@ -405,55 +405,57 @@ def index():
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
-                transition: transform 0.5s ease;
+                transition: transform 0.4s ease;
             }
-            .card:hover img { transform: scale(1.06); }
-            .content { padding: 1.3rem; }
+            .card:hover img { transform: scale(1.05); }
+            .content { padding: 1rem; }
             .category-badge {
                 display: inline-block;
                 background: var(--primary);
                 color: white;
-                padding: 0.3rem 0.8rem;
+                padding: 0.25rem 0.7rem;
                 border-radius: 9999px;
-                font-size: 0.75rem;
+                font-size: 0.7rem;
                 font-weight: 600;
-                margin-bottom: 0.6rem;
+                margin-bottom: 0.5rem;
             }
-            .card h2 { font-size: 1.3rem; line-height: 1.4; margin-bottom: 0.6rem; font-weight: 700; }
+            .card h2 { font-size: 1.15rem; line-height: 1.3; margin-bottom: 0.5rem; font-weight: 700; }
             .card h2 a { color: #0f172a; text-decoration: none; }
             .card h2 a:hover { color: var(--primary); }
-            .meta { font-size: 0.85rem; color: var(--gray); margin-bottom: 0.7rem; }
-            .card p { color: #475569; font-size: 0.98rem; line-height: 1.6; margin-bottom: 1rem; }
+            .meta { font-size: 0.8rem; color: var(--gray); margin-bottom: 0.6rem; }
+            .card p { color: #475569; font-size: 0.92rem; line-height: 1.5; margin-bottom: 0.8rem; }
             .readmore {
                 background: var(--primary);
                 color: white;
-                padding: 0.7rem 1.5rem;
+                padding: 0.6rem 1.2rem;
                 border-radius: 9999px;
                 text-decoration: none;
                 font-weight: 700;
-                font-size: 0.95rem;
+                font-size: 0.9rem;
                 display: inline-block;
                 transition: all 0.3s;
             }
             .readmore:hover { background: var(--primary-dark); }
-            .pagination { display: flex; justify-content: center; gap: 0.8rem; margin: 3rem 0; flex-wrap: wrap; }
-            .page-link { padding: 0.7rem 1.4rem; background: #f1f5f9; color: #475569; border-radius: 9999px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
+            .pagination { display: flex; justify-content: center; gap: 0.7rem; margin: 2.5rem 0; flex-wrap: wrap; }
+            .page-link { padding: 0.6rem 1.2rem; background: #f1f5f9; color: #475569; border-radius: 9999px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
             .page-link:hover, .page-link.active { background: var(--primary); color: white; }
-            footer { text-align: center; padding: 3rem 1rem; background: var(--dark); color: #94a3b8; font-size: 0.9rem; }
+            footer { text-align: center; padding: 3rem 1rem 2rem; background: var(--dark); color: #94a3b8; font-size: 0.9rem; }
             footer a { color: var(--primary); text-decoration: none; }
             @media (max-width: 1024px) { .grid { grid-template-columns: repeat(3, 1fr); } }
             @media (max-width: 768px) {
-                header { padding: 0.8rem 0; }
+                header { padding: 0.6rem 0; }
                 h1 { font-size: 2rem; margin: 0; }
                 .tagline { font-size: 0.95rem; }
-                .tabs { padding: 0 0.5rem; gap: 0.5rem; }
-                .tab { padding: 0.5rem 1rem; font-size: 0.9rem; }
-                .grid { grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
-                .container { margin: 1.5rem auto; padding: 0 0.8rem; }
-                .img-container { height: 180px; }
+                .tabs { padding: 0 0.3rem; gap: 0.4rem; overflow-x: auto; justify-content: flex-start; }
+                .tab { padding: 0.4rem 1rem; font-size: 0.85rem; }
+                .grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+                .container { margin: 1rem auto; padding: 0 0.6rem; }
+                .img-container { height: 160px; }
+                .card h2 { font-size: 1.1rem; }
+                .card p { font-size: 0.9rem; }
             }
             @media (max-width: 480px) {
-                .grid { grid-template-columns: 1fr; }
+                .grid { grid-template-columns: repeat(2, 1fr); }
                 h1 { font-size: 1.8rem; }
             }
         </style>
@@ -462,7 +464,6 @@ def index():
         <header>
             <div class="header-inner">
                 <h1>NaijaBuzz</h1>
-                <div class="tagline">Your Daily Dose of Fresh Nigerian & Global News</div>
             </div>
 
             <nav class="tabs-container">
@@ -583,8 +584,7 @@ def post_detail(slug):
                 top: 0;
                 z-index: 1000;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                padding: 0.8rem 0;
-                transition: padding 0.3s ease;
+                padding: 0.6rem 0;
             }
             .header-inner {
                 text-align: center;
@@ -594,34 +594,29 @@ def post_detail(slug):
                 font-family: 'Playfair Display', serif;
                 font-size: 2.2rem;
                 font-weight: 700;
-                margin: 0.4rem 0 0.2rem;
+                margin: 0.3rem 0 0.1rem;
                 letter-spacing: -1px;
-            }
-            .tagline {
-                font-size: 1rem;
-                opacity: 0.9;
-                margin: 0;
             }
             .tabs-container {
                 background: white;
-                padding: 0.6rem 0;
+                padding: 0.4rem 0;
                 overflow-x: auto;
                 border-bottom: 1px solid var(--border);
             }
             .tabs {
                 display: flex;
-                gap: 0.6rem;
-                padding: 0 0.8rem;
+                gap: 0.5rem;
+                padding: 0 0.6rem;
                 white-space: nowrap;
-                justify-content: center;
+                justify-content: flex-start;
             }
             .tab {
-                padding: 0.5rem 1.1rem;
+                padding: 0.4rem 1rem;
                 background: #f1f5f9;
                 color: #475569;
                 border-radius: 9999px;
                 font-weight: 600;
-                font-size: 0.9rem;
+                font-size: 0.85rem;
                 text-decoration: none;
                 transition: all 0.3s ease;
             }
@@ -631,77 +626,77 @@ def post_detail(slug):
             }
             .single-container {
                 max-width: 1000px;
-                margin: 1.5rem auto;
-                padding: 0 1rem;
+                margin: 1rem auto;
+                padding: 0 0.8rem;
             }
             .single-img {
                 width: 100%;
-                max-height: 500px;
+                max-height: 450px;
                 object-fit: cover;
                 border-radius: 1rem;
-                margin: 1rem 0 1.5rem;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+                margin: 0.8rem 0 1.2rem;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.1);
             }
             .single-meta {
                 color: var(--primary);
                 font-weight: 700;
-                font-size: 0.95rem;
+                font-size: 0.9rem;
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                margin-bottom: 0.8rem;
+                margin-bottom: 0.6rem;
             }
             h1 {
-                font-size: 2.4rem;
+                font-size: 2.2rem;
                 line-height: 1.2;
-                margin-bottom: 1rem;
+                margin-bottom: 0.8rem;
                 color: var(--dark);
             }
             .single-content {
                 line-height: 1.9;
-                font-size: 1.15rem;
+                font-size: 1.12rem;
                 color: #1e293b;
             }
             .single-content h2, .single-content h3 {
-                margin: 2rem 0 1rem;
+                margin: 1.8rem 0 0.8rem;
                 color: var(--dark);
             }
             .source {
-                margin: 2.5rem 0 3rem;
+                margin: 2rem 0 2.5rem;
                 font-style: italic;
                 color: var(--gray);
-                font-size: 0.95rem;
+                font-size: 0.9rem;
             }
             .source a {
                 color: var(--primary);
                 text-decoration: none;
             }
             .related {
-                margin-top: 4rem;
+                margin-top: 3rem;
             }
             .related h2 {
                 font-family: 'Playfair Display', serif;
-                font-size: 2rem;
-                margin-bottom: 1.5rem;
+                font-size: 1.8rem;
+                margin-bottom: 1.2rem;
                 color: var(--dark);
             }
             .related-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                gap: 1.8rem;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1.5rem;
             }
             .related .card {
                 background: white;
-                border-radius: 1rem;
+                border-radius: 0.8rem;
                 overflow: hidden;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+                box-shadow: 0 3px 12px rgba(0,0,0,0.08);
                 transition: all 0.3s;
             }
             .related .card:hover {
-                transform: translateY(-6px);
-                box-shadow: 0 16px 32px rgba(0,0,0,0.12);
+                transform: translateY(-4px);
+                box-shadow: 0 12px 24px rgba(0,0,0,0.1);
             }
             .related .img-container {
-                height: 180px;
+                height: 160px;
                 background: #0f172a;
                 overflow: hidden;
             }
@@ -711,40 +706,42 @@ def post_detail(slug):
                 object-fit: cover;
             }
             .related .content {
-                padding: 1.2rem;
+                padding: 1rem;
             }
             .related .card h2 {
-                font-size: 1.25rem;
-                margin-bottom: 0.5rem;
+                font-size: 1.15rem;
+                margin-bottom: 0.4rem;
             }
             .related .meta {
-                font-size: 0.85rem;
+                font-size: 0.8rem;
                 color: var(--gray);
             }
             footer {
                 text-align: center;
-                padding: 4rem 1rem 2rem;
+                padding: 3rem 1rem 2rem;
                 background: var(--dark);
                 color: #94a3b8;
-                font-size: 0.95rem;
+                font-size: 0.9rem;
             }
             footer a {
                 color: var(--primary);
                 text-decoration: none;
             }
             @media (max-width: 768px) {
-                header { padding: 0.6rem 0; }
-                h1 { font-size: 1.8rem; margin: 0.3rem 0; }
-                .tagline { font-size: 0.9rem; }
-                .single-container { margin: 1rem auto; padding: 0 0.8rem; }
-                .single-img { max-height: 400px; margin: 0.8rem 0 1.2rem; }
-                .single-meta { font-size: 0.85rem; margin-bottom: 0.6rem; }
+                header { padding: 0.5rem 0; }
+                h1 { font-size: 1.9rem; margin: 0.2rem 0; }
+                .tabs-container { padding: 0.4rem 0; }
+                .tabs { padding: 0 0.3rem; gap: 0.4rem; }
+                .tab { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
+                .single-container { margin: 0.8rem auto; padding: 0 0.6rem; }
+                .single-img { max-height: 380px; margin: 0.6rem 0 1rem; }
+                .single-meta { font-size: 0.85rem; margin-bottom: 0.5rem; }
                 .single-content { font-size: 1.05rem; }
-                .related-grid { grid-template-columns: 1fr; }
+                .related-grid { grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
             }
             @media (max-width: 480px) {
-                h1 { font-size: 1.6rem; }
-                .single-img { max-height: 300px; }
+                h1 { font-size: 1.7rem; }
+                .single-img { max-height: 320px; }
             }
         </style>
     </head>
@@ -752,8 +749,8 @@ def post_detail(slug):
         <header>
             <div class="header-inner">
                 <h1>NaijaBuzz</h1>
-                <div class="tagline">Your Trusted Source for Fresh News & Updates</div>
             </div>
+
             <nav class="tabs-container">
                 <div class="tabs">
                     {% for key, name in categories.items() %}
@@ -789,7 +786,7 @@ def post_detail(slug):
         </div>
 
         <footer>
-            © 2026 <a href="/">NaijaBuzz</a> • naijabuzz.com • Always refreshed with the latest stories
+            © 2026 <a href="/">NaijaBuzz</a> • All rights reserved • Auto-refreshed every 15 minutes
         </footer>
     </body>
     </html>
@@ -806,7 +803,6 @@ def cron():
     try:
         init_db()
 
-        # DB health check (fixed)
         try:
             db.session.execute(text("SELECT 1"))
         except Exception as db_err:
