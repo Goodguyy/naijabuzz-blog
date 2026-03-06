@@ -15,11 +15,7 @@ from sqlalchemy import text  # for clean DB ping
 
 app = Flask(__name__)
 
-# Load environment variables from .env file (if present)
-from dotenv import load_dotenv
-load_dotenv()
-
-# Database configuration
+# Database configuration (Render will use DATABASE_URL from env)
 db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///posts.db'
 if db_uri and db_uri.startswith('postgres://'):
     db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
@@ -157,7 +153,7 @@ HF_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
 # Cache rewrites (max 500 unique in memory)
 @lru_cache(maxsize=500)
 def cached_rewrite(key):
-    return None  # placeholder
+    return None
 
 def rewrite_article(full_text, title, category):
     cache_key = hashlib.sha256((title + full_text[:1000]).encode()).hexdigest()
@@ -810,7 +806,7 @@ def cron():
     try:
         init_db()
 
-        # DB health check (fixed with text())
+        # DB health check (fixed)
         try:
             db.session.execute(text("SELECT 1"))
         except Exception as db_err:
