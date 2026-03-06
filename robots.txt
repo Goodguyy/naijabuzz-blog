@@ -1,9 +1,21 @@
 User-agent: *
 Allow: /
 
-# Prevent crawling of pagination to save crawl budget and reduce duplicate content signals
+# Block pagination parameters to avoid duplicate content and save crawl budget
 Disallow: /*?page=*
 Disallow: /*?cat=*&page=*
 
-# Tell search engines where your sitemap is
+# Block internal/cron endpoints (no value for search engines)
+Disallow: /cron
+Disallow: /generate
+
+# Block any future admin/debug paths (add more if you create them)
+Disallow: /admin*
+Disallow: /debug*
+Disallow: /test*
+
+# Optional: crawl delay (only if your site is very large/slow - usually not needed)
+# Crawl-delay: 10
+
+# Sitemap location
 Sitemap: https://naijabuzz.com/sitemap.xml
