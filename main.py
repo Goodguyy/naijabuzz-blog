@@ -132,7 +132,7 @@ def get_image(entry):
             elif not url.startswith('http'):
                 url = urllib.parse.urljoin(entry.link, url)
             return url
-    return "/static/img/naijabuzz-placeholder.jpg"  # ← your custom placeholder
+    return "/static/img/naijabuzz-placeholder.jpg"  # your custom placeholder
 
 def parse_date(d):
     if not d: return datetime.now(timezone.utc)
@@ -254,8 +254,44 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 @app.route('/sitemap.xml')
-def serve_sitemap():
-    return send_from_directory('.', 'sitemap.xml')
+def dynamic_sitemap():
+    # Get the most recent articles (limit to 1000 - adjust as needed)
+    posts = Post.query.order_by(Post.pub_date.desc()).limit(1000).all()
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+    # Homepage
+    xml += '  <url>\n'
+    xml += '    <loc>https://naijabuzz.com/</loc>\n'
+    xml += f'    <lastmod>{datetime.now(timezone.utc).strftime("%Y-%m-%d")}</lastmod>\n'
+    xml += '    <changefreq>hourly</changefreq>\n'
+    xml += '    <priority>1.0</priority>\n'
+    xml += '  </url>\n'
+
+    # Category pages
+    for cat_key in CATEGORIES:
+        if cat_key != 'all':
+            xml += '  <url>\n'
+            xml += f'    <loc>https://naijabuzz.com/?cat={urllib.parse.quote(cat_key)}</loc>\n'
+            xml += f'    <lastmod>{datetime.now(timezone.utc).strftime("%Y-%m-%d")}</lastmod>\n'
+            xml += '    <changefreq>daily</changefreq>\n'
+            xml += '    <priority>0.8</priority>\n'
+            xml += '  </url>\n'
+
+    # All articles from database
+    for post in posts:
+        lastmod = post.pub_date.strftime('%Y-%m-%d') if post.pub_date else datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        xml += '  <url>\n'
+        xml += f'    <loc>https://naijabuzz.com/{post.slug}</loc>\n'
+        xml += f'    <lastmod>{lastmod}</lastmod>\n'
+        xml += '    <changefreq>weekly</changefreq>\n'
+        xml += '    <priority>0.9</priority>\n'
+        xml += '  </url>\n'
+
+    xml += '</urlset>'
+
+    return xml, 200, {'Content-Type': 'application/xml'}
 
 @app.route('/robots.txt')
 def serve_robots():
